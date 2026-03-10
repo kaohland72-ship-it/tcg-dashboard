@@ -367,6 +367,11 @@ tr:hover td{background:rgba(255,255,255,.018)}
 .rel-countdown.today{color:var(--sale);font-weight:700}
 .rel-countdown.past{color:var(--muted)}
 .rel-notes-text{font-size:10px;color:var(--muted);margin-top:3px;line-height:1.4}
+/* ── RELEASE ITEM EDIT MODE ── */
+.rel-item.editing{background:var(--surface2);border:1px solid var(--accent);border-radius:10px;padding:10px 12px;opacity:1!important}
+.rel-edit-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;margin-bottom:8px}
+.rel-edit-notes{margin-bottom:8px}
+.rel-edit-actions{display:flex;gap:7px;justify-content:flex-end}
 
 /* Timeline connector line */
 .rel-connector{width:1px;background:var(--border);height:100%;position:absolute;left:21px;top:0;z-index:0}
@@ -2401,6 +2406,57 @@ function deleteRelease(id) {
   renderReleases();
 }
 
+function editRelease(id) {
+  const r = releases.find(r => r.id === id);
+  if (!r) return;
+  const el = document.getElementById('rel-item-'+id);
+  if (!el) return;
+
+  // Replace item content with inline edit form
+  el.classList.add('editing');
+  el.innerHTML = `
+    <div style="flex:1">
+      <div class="rel-edit-grid">
+        <div class="fg"><label>Product Name</label><input type="text" id="rel-edit-name-${id}" value="${r.name.replace(/"/g,'&quot;')}" style="width:100%"/></div>
+        <div class="fg"><label>Type</label>
+          <select id="rel-edit-type-${id}" style="width:100%">
+            <option value="new"       ${r.type==='new'      ?'selected':''}>New Release</option>
+            <option value="reprint"   ${r.type==='reprint'  ?'selected':''}>Reprint</option>
+            <option value="expansion" ${r.type==='expansion'?'selected':''}>Expansion</option>
+            <option value="promo"     ${r.type==='promo'    ?'selected':''}>Promo / Special</option>
+            <option value="bundle"    ${r.type==='bundle'   ?'selected':''}>Bundle / Box</option>
+          </select>
+        </div>
+        <div class="fg"><label>Release Date</label><input type="date" id="rel-edit-date-${id}" value="${r.date}" style="width:100%"/></div>
+      </div>
+      <div class="rel-edit-notes">
+        <div class="fg"><label>Notes</label><input type="text" id="rel-edit-notes-${id}" value="${(r.notes||'').replace(/"/g,'&quot;')}" placeholder="e.g. MSRP $49.99, hot set..." style="width:100%"/></div>
+      </div>
+      <div class="rel-edit-actions">
+        <button class="btn btn-sm btn-outline" onclick="cancelEditRelease(${id})">Cancel</button>
+        <button class="btn btn-sm" onclick="saveEditRelease(${id})">✓ Save</button>
+      </div>
+    </div>`;
+
+  // Focus name field
+  document.getElementById('rel-edit-name-'+id)?.focus();
+}
+
+function cancelEditRelease(id) {
+  renderReleases(); // simply re-render to restore normal view
+}
+
+function saveEditRelease(id) {
+  const name  = document.getElementById('rel-edit-name-'+id)?.value.trim();
+  const type  = document.getElementById('rel-edit-type-'+id)?.value;
+  const date  = document.getElementById('rel-edit-date-'+id)?.value;
+  const notes = document.getElementById('rel-edit-notes-'+id)?.value.trim();
+  if (!name || !date) { alert('Product name and release date are required.'); return; }
+  releases = releases.map(r => r.id === id ? { ...r, name, type, date, notes } : r);
+  saveReleases();
+  renderReleases();
+}
+
 function setRelFilter(f, btn) {
   relFilter = f;
   document.querySelectorAll('.rel-filters .fb').forEach(b => b.classList.remove('active'));
@@ -2476,7 +2532,7 @@ function renderReleases() {
       const dayNum   = d.getDate();
       const monLabel = d.toLocaleString('default', {month:'short'}).toUpperCase();
 
-      return `<div class="rel-item ${isPast?'past':''} ${isToday?'today-rel':''}">
+      return `<div class="rel-item ${isPast?'past':''} ${isToday?'today-rel':''}" id="rel-item-${r.id}">
         <div class="rel-date-col">
           <div class="rel-day">${dayNum}</div>
           <div class="rel-mon">${monLabel}</div>
@@ -2490,7 +2546,10 @@ function renderReleases() {
           </div>
           ${r.notes ? `<div class="rel-notes-text">${r.notes}</div>` : ''}
         </div>
-        <button class="id-btn" onclick="deleteRelease(${r.id})" title="Remove">&#x2715;</button>
+        <div style="display:flex;gap:5px;flex-shrink:0">
+          <button class="btn btn-sm btn-outline" onclick="editRelease(${r.id})" title="Edit">✎</button>
+          <button class="id-btn" onclick="deleteRelease(${r.id})" title="Remove">&#x2715;</button>
+        </div>
       </div>`;
     }).join('');
 
