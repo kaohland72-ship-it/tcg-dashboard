@@ -1,0 +1,3174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TCG HQ — Business Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0d0f14; --surface:#13161e; --surface2:#1a1e28; --border:#252836;
+  --accent:#e8c547; --accent2:#4ecdc4; --accent3:#ff6b6b; --accent4:#a78bfa;
+  --text:#e8eaf0; --muted:#6b7280;
+  --purchase:#4ecdc4; --listing:#a78bfa; --expense:#ff6b6b;
+  --sale:#34d399; --break:#f97316; --tcg:#3b82f6;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:1000;opacity:.4}
+
+/* ── HEADER ── */
+header{padding:14px 28px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface);position:sticky;top:0;z-index:200;gap:16px;flex-wrap:wrap}
+.logo{font-family:'Syne',sans-serif;font-size:21px;font-weight:800;letter-spacing:-.5px;flex-shrink:0}
+.logo span{color:var(--accent)}
+.header-pills{display:flex;gap:10px;flex-wrap:wrap}
+.stat-pill{font-size:10.5px;padding:4px 11px;border-radius:20px;border:1px solid var(--border);display:flex;align-items:center;gap:5px;white-space:nowrap}
+.stat-pill .dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+
+/* ── TABS ── */
+.tab-bar{display:flex;background:var(--surface);border-bottom:1px solid var(--border);padding:0 28px;position:sticky;top:57px;z-index:150;overflow-x:auto}
+.tab-btn{padding:11px 18px;font-family:'Syne',sans-serif;font-size:11.5px;font-weight:700;letter-spacing:.8px;color:var(--muted);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;transition:all .15s;text-transform:uppercase;white-space:nowrap}
+.tab-btn:hover{color:var(--text)}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+
+/* ── LAYOUT ── */
+.panel-layout{display:grid;grid-template-columns:1fr 360px;min-height:calc(100vh - 100px)}
+.left-col{border-right:1px solid var(--border);display:flex;flex-direction:column}
+.right-col{background:var(--surface);display:flex;flex-direction:column}
+
+/* ── COMMON ── */
+.sw{padding:22px 28px}
+.sw+.sw{border-top:1px solid var(--border)}
+.sw.right{padding:22px}
+.sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:8px;flex-wrap:wrap}
+.st{font-family:'Syne',sans-serif;font-size:11.5px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);flex-shrink:0}
+.fg{display:flex;flex-direction:column;gap:4px}
+label{font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase}
+input,select,textarea{background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:12px;padding:7px 10px;border-radius:7px;outline:none;transition:border-color .15s;width:100%}
+input:focus,select:focus{border-color:var(--accent)}
+select option{background:var(--surface2)}
+
+.btn{background:var(--accent);color:#000;border:none;padding:8px 16px;border-radius:7px;font-family:'Syne',sans-serif;font-size:11.5px;font-weight:700;cursor:pointer;letter-spacing:.4px;transition:all .15s;white-space:nowrap}
+.btn:hover{opacity:.88;transform:translateY(-1px)}
+.btn-sm{padding:3px 9px;font-size:10px}
+.btn-danger{background:transparent;color:var(--accent3);border:1px solid var(--accent3)}
+.btn-danger:hover{background:var(--accent3);color:#fff;transform:none}
+.btn-sale{background:var(--sale);color:#000}
+.btn-break{background:var(--break);color:#fff}
+.btn-tcg{background:var(--tcg);color:#fff}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--muted)}
+.btn-outline:hover{border-color:var(--text);color:var(--text);transform:none}
+.btn-muted{background:var(--surface2);border:1px solid var(--border);color:var(--text)}
+.btn-icon{background:var(--surface2);border:1px solid var(--border);color:var(--text);width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.btn-icon:hover{background:var(--border)}
+
+.fr{display:grid;gap:9px;align-items:end;margin-bottom:14px}
+.c4{grid-template-columns:1fr 1fr 1fr auto}
+.c5{grid-template-columns:2fr 1fr 1fr 1fr auto}
+
+/* ── TABLE ── */
+.tw{border:1px solid var(--border);border-radius:9px;overflow:hidden}
+.tw.sc{overflow-y:auto}
+table{width:100%;border-collapse:collapse;font-size:11px}
+thead{background:var(--surface2);position:sticky;top:0;z-index:10}
+th{padding:8px 11px;text-align:left;font-size:9.5px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;font-weight:500;white-space:nowrap}
+td{padding:8px 11px;border-top:1px solid var(--border);vertical-align:middle}
+tr:hover td{background:rgba(255,255,255,.018)}
+
+.badge{padding:2px 7px;border-radius:4px;font-size:9.5px;font-weight:500;letter-spacing:.4px}
+.b-purchase{background:rgba(78,205,196,.15);color:var(--purchase)}
+.b-listing{background:rgba(167,139,250,.15);color:var(--listing)}
+.b-expense{background:rgba(255,107,107,.15);color:var(--expense)}
+.b-sale{background:rgba(52,211,153,.15);color:var(--sale)}
+.b-break{background:rgba(249,115,22,.15);color:var(--break)}
+
+.gp{color:var(--sale)}
+.gn{color:var(--accent3)}
+.qty-b{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:18px;background:rgba(232,197,71,.15);color:var(--accent);border-radius:4px;font-size:11px;font-weight:700;padding:0 5px}
+.qty-b.zero{background:rgba(107,114,128,.15);color:var(--muted)}
+
+/* ── CARDS ── */
+.cards{display:grid;gap:10px;margin-top:18px}
+.c3g{grid-template-columns:repeat(3,1fr)}
+.c4g{grid-template-columns:repeat(4,1fr)}
+.c5g{grid-template-columns:repeat(5,1fr)}
+.card{background:var(--surface2);border:1px solid var(--border);border-radius:11px;padding:13px 15px}
+.card .lbl{font-size:9.5px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px}
+.card .val{font-family:'Syne',sans-serif;font-size:19px;font-weight:800}
+.card .sub{font-size:9.5px;color:var(--muted);margin-top:2px}
+.card.hl{border-color:rgba(232,197,71,.35);background:rgba(232,197,71,.05)}
+.card.hl-break{border-color:rgba(249,115,22,.35);background:rgba(249,115,22,.05)}
+.card.hl-tcg{border-color:rgba(59,130,246,.35);background:rgba(59,130,246,.05)}
+
+/* ── CALENDAR ── */
+.cal-month{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;min-width:130px;text-align:center}
+.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cdl{text-align:center;font-size:9.5px;color:var(--muted);padding:4px 0;letter-spacing:1px}
+.cd{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:7px;cursor:pointer;font-size:10.5px;transition:all .15s;gap:2px;padding:2px}
+.cd:hover{background:var(--surface2)}
+.cd.om{opacity:.3}
+.cd.today{background:var(--accent);color:#000;font-weight:700}
+.cd.sel{background:var(--surface2);border:1px solid var(--accent)}
+.cal-dots{display:flex;gap:2px;flex-wrap:wrap;justify-content:center;max-width:20px}
+.cal-dot{width:3.5px;height:3.5px;border-radius:50%}
+
+/* ── INV FORM ── */
+.inv-panel{padding:24px 28px}
+.inv-form-box{background:var(--surface2);border:1px solid var(--border);border-radius:11px;padding:14px;margin-bottom:20px}
+.form-tabs{display:flex;gap:7px;margin-bottom:13px;flex-wrap:wrap}
+.form-tab{font-family:'Syne',sans-serif;font-size:10.5px;font-weight:700;letter-spacing:.4px;padding:5px 13px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s}
+.form-tab.ab{background:rgba(78,205,196,.12);border-color:var(--purchase);color:var(--purchase)}
+.form-tab.as{background:rgba(52,211,153,.12);border-color:var(--sale);color:var(--sale)}
+.form-tab.abk{background:rgba(249,115,22,.12);border-color:var(--break);color:var(--break)}
+.isf{display:none}
+.isf.active{display:block}
+.hint{font-size:9.5px;color:var(--muted);margin-top:6px}
+
+/* ── FILTER ── */
+.filter-row{display:flex;gap:6px;flex-wrap:wrap}
+.fb{background:transparent;border:1px solid var(--border);color:var(--muted);padding:3px 11px;border-radius:20px;font-size:9.5px;cursor:pointer;font-family:'DM Mono',monospace;letter-spacing:.4px;transition:all .15s}
+.fb.active{background:var(--surface2);border-color:var(--accent);color:var(--accent)}
+
+/* ── CHECKLIST ── */
+.cl-add{background:var(--surface2);border:1px solid var(--border);border-radius:11px;padding:13px;margin-bottom:14px;display:flex;flex-direction:column;gap:7px}
+.cl-add-row{display:flex;gap:7px}
+.cl-add-row input,.cl-add-row select{flex:1}
+.cl-items{display:flex;flex-direction:column;gap:6px}
+.cl-item{background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:10px 12px;display:flex;align-items:flex-start;gap:8px;animation:sli .2s ease}
+@keyframes sli{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+.cl-item.overdue{border-color:var(--accent3);background:rgba(255,107,107,.04)}
+.cl-item.due-soon{border-color:var(--accent);background:rgba(232,197,71,.04)}
+.cl-item.done{opacity:.4}
+.chk{width:16px;height:16px;border-radius:4px;border:2px solid var(--border);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s;margin-top:1px;font-size:9px}
+.chk:hover{border-color:var(--accent)}
+.chk.checked{background:var(--accent);border-color:var(--accent);color:#000}
+.ic{flex:1;min-width:0}
+.it{font-size:11.5px;line-height:1.3;margin-bottom:3px}
+.it.st{text-decoration:line-through;color:var(--muted)}
+.im{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.dl{font-size:9.5px;padding:2px 6px;border-radius:3px}
+.dl.overdue{background:rgba(255,107,107,.2);color:var(--accent3)}
+.dl.due-soon{background:rgba(232,197,71,.2);color:var(--accent)}
+.dl.ok{background:rgba(78,205,196,.1);color:var(--accent2)}
+.pt{font-size:9.5px;padding:2px 6px;border-radius:3px}
+.ph{background:rgba(255,107,107,.15);color:var(--accent3)}
+.pm{background:rgba(232,197,71,.15);color:var(--accent)}
+.pl{background:rgba(107,114,128,.2);color:var(--muted)}
+.id-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:1px;transition:color .15s;flex-shrink:0}
+.id-btn:hover{color:var(--accent3)}
+.rem-banner{margin-bottom:12px;background:rgba(232,197,71,.07);border:1px solid rgba(232,197,71,.3);border-radius:9px;padding:9px 12px;font-size:10.5px;display:none}
+.rem-banner.visible{display:block}
+.rem-banner strong{color:var(--accent);font-family:'Syne',sans-serif}
+.empty-state{text-align:center;color:var(--muted);font-size:11px;padding:30px 16px}
+
+/* ── SINGLES / CSV ── */
+.tcg-panel{padding:24px 28px}
+
+/* Drop zone */
+.drop-zone{border:2px dashed var(--border);border-radius:12px;padding:32px;text-align:center;transition:all .2s;cursor:pointer;background:var(--surface2);margin-bottom:20px;position:relative}
+.drop-zone:hover,.drop-zone.drag-over{border-color:var(--tcg);background:rgba(59,130,246,.06)}
+.drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.dz-icon{font-size:32px;margin-bottom:10px}
+.dz-title{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;margin-bottom:6px}
+.dz-sub{font-size:11px;color:var(--muted);line-height:1.6}
+.dz-badge{display:inline-block;font-size:10px;padding:2px 8px;border-radius:4px;background:rgba(59,130,246,.15);color:var(--tcg);margin-top:8px;font-family:'Syne',sans-serif;font-weight:700}
+
+/* Column mapper */
+.mapper-box{background:var(--surface2);border:1px solid var(--border);border-radius:11px;padding:18px;margin-bottom:18px;display:none}
+.mapper-box.visible{display:block}
+.mapper-title{font-family:'Syne',sans-serif;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:14px}
+.mapper-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:14px}
+.mapper-actions{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.mapper-summary{font-size:10.5px;color:var(--muted)}
+
+/* Preview table */
+.preview-box{background:var(--surface2);border:1px solid var(--border);border-radius:11px;overflow:hidden;margin-bottom:18px;display:none}
+.preview-box.visible{display:block}
+.preview-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.preview-title{font-family:'Syne',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+.preview-scroll{max-height:220px;overflow-y:auto}
+.tag-new{background:rgba(52,211,153,.15);color:var(--sale);font-size:9px;padding:1px 5px;border-radius:3px;font-weight:700}
+.tag-update{background:rgba(59,130,246,.15);color:var(--tcg);font-size:9px;padding:1px 5px;border-radius:3px;font-weight:700}
+.tag-skip{background:rgba(107,114,128,.15);color:var(--muted);font-size:9px;padding:1px 5px;border-radius:3px}
+
+/* Singles table */
+.tcg-link{color:var(--tcg);font-size:10px;text-decoration:none}
+.tcg-link:hover{text-decoration:underline}
+.mkt-badge{font-size:9.5px;padding:2px 6px;border-radius:3px;background:rgba(52,211,153,.12);color:var(--sale)}
+.mkt-stale{background:rgba(107,114,128,.15);color:var(--muted)}
+
+/* Import history */
+.import-hist{font-size:10.5px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:12px 14px;margin-bottom:18px}
+.import-hist strong{color:var(--text)}
+
+/* ── SOLD / REVENUE TABS ── */
+.tab-panel-inner{padding:24px 28px}
+.card.hl-sold{border-color:rgba(167,139,250,.35);background:rgba(167,139,250,.05)}
+.card.hl-rev{border-color:rgba(52,211,153,.35);background:rgba(52,211,153,.05)}
+
+/* Month grid for revenue */
+.month-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:22px}
+.month-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;transition:border-color .15s}
+.month-card:hover{border-color:var(--sale)}
+.month-card .mc-month{font-family:'Syne',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.month-card .mc-rev{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:var(--sale)}
+.month-card .mc-sub{font-size:9.5px;color:var(--muted);margin-top:3px}
+.month-card.best{border-color:rgba(232,197,71,.5);background:rgba(232,197,71,.04)}
+.month-card.best .mc-month{color:var(--accent)}
+
+/* Bar chart */
+.bar-chart{background:var(--surface2);border:1px solid var(--border);border-radius:11px;padding:18px 18px 12px;margin-bottom:22px}
+.bar-chart-title{font-family:'Syne',sans-serif;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:16px}
+.bars-wrap{display:flex;align-items:flex-end;gap:5px;height:120px;padding-bottom:22px;position:relative;border-bottom:1px solid var(--border)}
+.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:3px;min-width:0;position:relative}
+.bar-fill{width:100%;border-radius:4px 4px 0 0;transition:height .4s ease;min-height:2px;cursor:pointer;position:relative}
+.bar-fill:hover{opacity:.8}
+.bar-fill .bar-tip{display:none;position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:3px 7px;font-size:9.5px;white-space:nowrap;margin-bottom:4px;z-index:20}
+.bar-fill:hover .bar-tip{display:block}
+.bar-label{font-size:8.5px;color:var(--muted);letter-spacing:.4px;text-align:center;position:absolute;bottom:-18px;left:0;right:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Sold table top cards */
+.rank-num{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:4px;font-size:10px;font-weight:700;font-family:'Syne',sans-serif;flex-shrink:0}
+.rank-1{background:rgba(232,197,71,.25);color:var(--accent)}
+.rank-2{background:rgba(167,139,250,.2);color:var(--accent4)}
+.rank-3{background:rgba(249,115,22,.2);color:var(--break)}
+.rank-n{background:var(--surface2);color:var(--muted)}
+
+/* Sold quantity bar inline */
+.sold-bar-wrap{display:flex;align-items:center;gap:7px;min-width:120px}
+.sold-bar-bg{flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden}
+.sold-bar-fill{height:100%;border-radius:3px;background:var(--accent4);transition:width .3s}
+
+/* ── MODAL ── */
+.mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:500;align-items:center;justify-content:center}
+.mo.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:15px;padding:26px;width:520px;max-width:95vw;animation:mi .2s ease;max-height:90vh;overflow-y:auto}
+@keyframes mi{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
+.modal-title{font-family:'Syne',sans-serif;font-size:15px;font-weight:800;margin-bottom:3px}
+.modal-sub{font-size:11px;color:var(--muted);margin-bottom:16px}
+.modal-actions{display:flex;gap:9px;justify-content:flex-end;margin-top:16px}
+.fifo-box{background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:11px;font-size:10.5px;margin-bottom:13px;max-height:180px;overflow-y:auto}
+.fifo-row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border)}
+.fifo-row:last-child{border-bottom:none}
+.fifo-row.tot{font-family:'Syne',sans-serif;font-weight:700;padding-top:7px}
+.modal-grid{display:grid;gap:9px;margin-bottom:0}
+.mg3{grid-template-columns:1fr 1fr 1fr}
+.mg2{grid-template-columns:1fr 1fr}
+
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+/* ── INVENTORY CHARTS ── */
+.charts-section{padding:0 0 24px}
+.chart-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px}
+.chart-box{background:var(--surface2);border:1px solid var(--border);border-radius:11px;padding:16px 18px}
+.chart-box.full{grid-column:1/-1}
+.chart-title{font-family:'Syne',sans-serif;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.chart-subtitle{font-size:9.5px;color:var(--muted);margin-bottom:14px}
+.chart-tabs{display:flex;gap:6px;margin-bottom:12px}
+.chart-tab{font-size:9.5px;padding:3px 10px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;transition:all .15s}
+.chart-tab.active{background:var(--surface);border-color:var(--accent);color:var(--accent)}
+/* Horizontal bar chart rows */
+.hbar-wrap{display:flex;flex-direction:column;gap:8px}
+.hbar-row{display:grid;grid-template-columns:130px 1fr 70px;gap:8px;align-items:center}
+.hbar-label{font-size:10px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right}
+.hbar-track{height:18px;background:var(--border);border-radius:4px;overflow:hidden;position:relative}
+.hbar-fill{height:100%;border-radius:4px;transition:width .4s ease;position:relative}
+.hbar-inner{height:100%;border-radius:4px}
+.hbar-val{font-size:10px;color:var(--muted);white-space:nowrap;font-family:'DM Mono',monospace}
+.hbar-qty{font-size:9px;color:var(--muted);margin-top:1px}
+/* Line chart */
+.linechart-svg{width:100%;overflow:visible}
+.lc-axis{font-size:9px;fill:#6b7280;font-family:'DM Mono',monospace}
+.lc-line{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.lc-area{opacity:.12}
+.lc-dot{transition:r .15s}
+/* Profit chart */
+.profit-row{display:grid;grid-template-columns:140px 1fr 90px;gap:8px;align-items:center;margin-bottom:7px}
+.profit-label{font-size:10px;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.profit-track{height:22px;background:var(--border);border-radius:4px;overflow:hidden;display:flex}
+.profit-cost{background:var(--accent3);opacity:.7;height:100%;transition:width .4s}
+.profit-mkt{height:100%;transition:width .4s}
+.profit-val{font-size:9.5px;white-space:nowrap;font-family:'DM Mono',monospace}
+/* SKU meta manager */
+.sku-meta-panel{background:var(--surface2);border:1px solid var(--border);border-radius:11px;padding:14px;margin-bottom:20px}
+.sku-meta-title{font-family:'Syne',sans-serif;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
+.sku-meta-row{display:grid;grid-template-columns:2fr 1.2fr 1.2fr 1fr auto;gap:8px;align-items:end;margin-bottom:8px}
+.sku-meta-list{max-height:260px;overflow-y:auto;margin-top:10px}
+.sku-meta-item{display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:8px;align-items:center;padding:7px 4px;border-bottom:1px solid var(--border);font-size:11px}
+.sku-meta-item:last-child{border-bottom:none}
+.smi-sku{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.smi-tag{font-size:9.5px;padding:2px 6px;border-radius:3px;background:var(--surface);border:1px solid var(--border);color:var(--muted)}
+.price-pill{display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--sale);background:rgba(52,211,153,.1);border-radius:4px;padding:2px 7px}
+.price-pill.no-price{color:var(--muted);background:transparent;border:1px solid var(--border)}
+/* Game badges */
+.game-badge{display:inline-block;font-size:9px;font-weight:700;letter-spacing:.5px;padding:2px 7px;border-radius:4px;text-transform:uppercase;font-family:'Syne',sans-serif;white-space:nowrap}
+.gb-pokemon{background:rgba(232,197,71,.2);color:var(--accent)}
+.gb-magic{background:rgba(167,139,250,.2);color:var(--accent4)}
+.gb-lorcana{background:rgba(78,205,196,.2);color:var(--purchase)}
+.gb-yugioh{background:rgba(249,115,22,.2);color:var(--break)}
+.gb-onepiece{background:rgba(255,107,107,.2);color:var(--accent3)}
+.gb-other{background:rgba(107,114,128,.2);color:var(--muted)}
+/* ── DATA TOOLBAR (export/import) ── */
+.data-toolbar{display:flex;align-items:center;gap:8px;padding:8px 18px;background:var(--surface2);border-bottom:1px solid var(--border);flex-wrap:wrap}
+.data-toolbar-label{font-size:9.5px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;font-family:'Syne',sans-serif;font-weight:700;margin-right:4px}
+.btn-export{background:rgba(52,211,153,.15);color:var(--sale);border:1px solid rgba(52,211,153,.3);padding:5px 14px;border-radius:6px;font-size:11px;cursor:pointer;font-family:'DM Mono',monospace;transition:all .15s}
+.btn-export:hover{background:rgba(52,211,153,.28)}
+.btn-import-data{background:rgba(167,139,250,.15);color:var(--accent4);border:1px solid rgba(167,139,250,.3);padding:5px 14px;border-radius:6px;font-size:11px;cursor:pointer;font-family:'DM Mono',monospace;transition:all .15s}
+.btn-import-data:hover{background:rgba(167,139,250,.28)}
+.data-toolbar-info{font-size:9.5px;color:var(--muted);margin-left:auto}
+/* ── PRICE SNAPSHOT LOG ── */
+.snap-section{margin-top:22px;border-top:1px solid var(--border);padding-top:18px}
+.snap-card-picker{display:flex;gap:10px;align-items:end;margin-bottom:16px;flex-wrap:wrap}
+.snap-chart-box{background:var(--surface2);border:1px solid var(--border);border-radius:11px;padding:16px 18px;margin-bottom:16px}
+.snap-empty{text-align:center;padding:28px;color:var(--muted);font-size:11px}
+.snap-legend{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:8px;font-size:10px}
+.snap-legend-item{display:flex;align-items:center;gap:5px;color:var(--muted)}
+.snap-legend-dot{width:8px;height:8px;border-radius:50%}
+/* Snapshot history table */
+.snap-hist-row{display:grid;grid-template-columns:100px 1fr 90px 90px 80px;gap:8px;align-items:center;padding:6px 4px;border-bottom:1px solid var(--border);font-size:10.5px}
+.snap-hist-row:last-child{border-bottom:none}
+.snap-hist-hdr{font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;font-weight:700}
+.snap-delta-pos{color:var(--sale)}
+.snap-delta-neg{color:var(--accent3)}
+.snap-delta-neu{color:var(--muted)}
+.rel-form-box{background:var(--surface2);border:1px solid var(--border);border-radius:11px;padding:14px;margin-bottom:20px}
+.rel-type-badge{display:inline-block;font-size:9.5px;font-weight:700;letter-spacing:.5px;padding:2px 8px;border-radius:4px;text-transform:uppercase;font-family:'Syne',sans-serif}
+.rt-new{background:rgba(52,211,153,.15);color:var(--sale)}
+.rt-reprint{background:rgba(167,139,250,.15);color:var(--accent4)}
+.rt-promo{background:rgba(232,197,71,.15);color:var(--accent)}
+.rt-expansion{background:rgba(78,205,196,.15);color:var(--purchase)}
+.rt-bundle{background:rgba(249,115,22,.15);color:var(--break)}
+
+/* Timeline */
+.rel-timeline{display:flex;flex-direction:column;gap:0}
+.rel-group-header{font-family:'Syne',sans-serif;font-size:9.5px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);padding:10px 0 6px;border-bottom:1px solid var(--border);margin-bottom:2px;display:flex;align-items:center;gap:8px}
+.rel-group-header .rgh-badge{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:9px;color:var(--muted)}
+.rel-item{display:flex;align-items:flex-start;gap:12px;padding:10px 4px;border-bottom:1px solid var(--border);animation:sli .2s ease;position:relative}
+.rel-item:last-child{border-bottom:none}
+.rel-item.past{opacity:.45}
+.rel-item.today-rel{background:rgba(232,197,71,.04);border-radius:8px;margin:2px 0}
+
+/* Date column */
+.rel-date-col{display:flex;flex-direction:column;align-items:center;flex-shrink:0;width:44px}
+.rel-day{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;line-height:1;color:var(--text)}
+.rel-mon{font-size:9px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase}
+.rel-dot{width:8px;height:8px;border-radius:50%;margin-top:4px;flex-shrink:0}
+
+/* Content */
+.rel-content{flex:1;min-width:0}
+.rel-name{font-size:12px;font-weight:500;line-height:1.3;margin-bottom:4px}
+.rel-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.rel-countdown{font-size:9.5px;color:var(--muted)}
+.rel-countdown.soon{color:var(--accent)}
+.rel-countdown.today{color:var(--sale);font-weight:700}
+.rel-countdown.past{color:var(--muted)}
+.rel-notes-text{font-size:10px;color:var(--muted);margin-top:3px;line-height:1.4}
+
+/* Timeline connector line */
+.rel-connector{width:1px;background:var(--border);height:100%;position:absolute;left:21px;top:0;z-index:0}
+
+/* Filter tabs for releases */
+.rel-filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+
+@media(max-width:960px){
+  .panel-layout{grid-template-columns:1fr}
+  .c4,.c5{grid-template-columns:1fr 1fr}
+  .c4g,.c5g{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+
+<!-- ══ HEADER ══ -->
+<header>
+  <div class="logo">TCG<span>HQ</span></div>
+  <div class="header-pills">
+    <div class="stat-pill"><span class="dot" style="background:var(--purchase)"></span><span id="hdr-skus">0 Sealed SKUs</span></div>
+    <div class="stat-pill"><span class="dot" style="background:var(--tcg)"></span><span id="hdr-singles">0 Singles SKUs</span></div>
+    <div class="stat-pill"><span class="dot" style="background:var(--sale)"></span><span id="hdr-mktval">$0.00 Market Value</span></div>
+    <div class="stat-pill"><span class="dot" style="background:var(--sale)"></span><span id="hdr-profit">$0.00 Sealed GP</span></div>
+  </div>
+  <div style="font-size:10.5px;color:var(--muted);flex-shrink:0" id="current-date"></div>
+</header>
+
+<!-- ══ TAB BAR ══ -->
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('dashboard',this)">Dashboard</button>
+  <button class="tab-btn" onclick="switchTab('inventory',this)">Sealed Inventory</button>
+  <button class="tab-btn" onclick="switchTab('singles',this)">Singles / TCGPlayer</button>
+  <button class="tab-btn" onclick="switchTab('sold',this)">Singles Sold</button>
+  <button class="tab-btn" onclick="switchTab('revenue',this)">TCG Revenue</button>
+</div>
+
+<!-- ══ DATA TOOLBAR ══ -->
+<div class="data-toolbar">
+  <span class="data-toolbar-label">Data</span>
+  <button class="btn-export" onclick="exportAllData()">⬇ Export Backup</button>
+  <label class="btn-import-data" style="cursor:pointer">
+    ⬆ Import Backup
+    <input type="file" accept=".json" id="import-json-input" onchange="importAllData(event)" style="display:none"/>
+  </label>
+  <span class="data-toolbar-info" id="data-toolbar-info">All data stored locally in your browser</span>
+</div>
+
+<!-- ══════════════ DASHBOARD ══════════════ -->
+<div id="tab-dashboard" class="tab-panel active">
+  <div class="panel-layout">
+
+    <!-- LEFT: Release Tracker -->
+    <div class="left-col">
+      <div class="sw">
+        <div class="sh">
+          <span class="st">New Releases &amp; Reprints</span>
+          <div style="display:flex;gap:7px;align-items:center">
+            <span id="rel-upcoming-count" style="font-size:10.5px;color:var(--muted)"></span>
+          </div>
+        </div>
+
+        <!-- Add form -->
+        <div class="rel-form-box">
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:9px;margin-bottom:9px">
+            <div class="fg"><label>Product Name</label><input type="text" id="rel-name" placeholder="e.g. Prismatic Evolutions ETB"/></div>
+            <div class="fg"><label>Type</label>
+              <select id="rel-type">
+                <option value="new">New Release</option>
+                <option value="reprint">Reprint</option>
+                <option value="expansion">Expansion</option>
+                <option value="promo">Promo / Special</option>
+                <option value="bundle">Bundle / Box</option>
+              </select>
+            </div>
+            <div class="fg"><label>Release Date</label><input type="date" id="rel-date"/></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr auto;gap:9px;align-items:end">
+            <div class="fg"><label>Notes (optional)</label><input type="text" id="rel-notes" placeholder="e.g. MSRP $49.99, hot set, watch closely..."/></div>
+            <button class="btn" onclick="addRelease()">+ Add</button>
+          </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="rel-filters">
+          <button class="fb active" onclick="setRelFilter('all',this)">All</button>
+          <button class="fb" onclick="setRelFilter('upcoming',this)">Upcoming</button>
+          <button class="fb" onclick="setRelFilter('past',this)">Past</button>
+          <button class="fb" onclick="setRelFilter('new',this)">New Release</button>
+          <button class="fb" onclick="setRelFilter('reprint',this)">Reprint</button>
+          <button class="fb" onclick="setRelFilter('expansion',this)">Expansion</button>
+        </div>
+
+        <!-- Timeline -->
+        <div class="rel-timeline" id="rel-timeline">
+          <div class="empty-state">No releases tracked yet. Add one above.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Checklist -->
+    <div class="right-col">
+      <div class="sw right" style="flex:1;overflow-y:auto">
+        <div class="sh"><span class="st">Checklist</span><span id="checklist-count" style="font-size:10.5px;color:var(--muted)">0 open</span></div>
+        <div class="cl-add">
+          <input type="text" id="task-title" placeholder="New task..."/>
+          <div class="cl-add-row">
+            <div class="fg" style="flex:1"><label>Deadline</label><input type="date" id="task-deadline"/></div>
+            <div class="fg" style="flex:1"><label>Priority</label>
+              <select id="task-priority"><option value="high">High</option><option value="med" selected>Medium</option><option value="low">Low</option></select>
+            </div>
+          </div>
+          <button class="btn" onclick="addTask()" style="width:100%">+ Add Task</button>
+        </div>
+        <div id="rem-banner" class="rem-banner"><strong>⏰ Reminders</strong><br/><span id="rem-text"></span></div>
+        <div class="filter-row" style="margin-bottom:12px">
+          <button class="fb active" onclick="setFilter('all',this)">All</button>
+          <button class="fb" onclick="setFilter('open',this)">Open</button>
+          <button class="fb" onclick="setFilter('done',this)">Done</button>
+          <button class="fb" onclick="setFilter('overdue',this)">Overdue</button>
+        </div>
+        <div class="cl-items" id="cl-items"><div class="empty-state">No tasks yet.</div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════ INVENTORY ══════════════ -->
+<div id="tab-inventory" class="tab-panel">
+  <div class="inv-panel">
+    <div class="cards c5g" style="margin-bottom:20px">
+      <div class="card"><div class="lbl">Inventory at Cost</div><div class="val" id="inv-cost-val" style="color:var(--purchase)">$0.00</div><div class="sub" id="inv-units-hand">0 units on hand</div></div>
+      <div class="card"><div class="lbl">Total COGS — Sealed Sales</div><div class="val" id="inv-cogs" style="color:var(--accent3)">$0.00</div><div class="sub" id="inv-units-sold">0 sold</div></div>
+      <div class="card hl-break"><div class="lbl">COGS — Singles Breaks</div><div class="val" id="inv-broken-cost" style="color:var(--break)">$0.00</div><div class="sub" id="inv-units-broken">0 units broken</div></div>
+      <div class="card"><div class="lbl">Sealed Sales Revenue</div><div class="val" id="inv-revenue" style="color:var(--sale)">$0.00</div><div class="sub" id="inv-txn-count">0 transactions</div></div>
+      <div class="card hl"><div class="lbl">Sealed Gross Profit</div><div class="val" id="inv-gp">$0.00</div><div class="sub" id="inv-margin">0.0% margin</div></div>
+    </div>
+
+    <div class="inv-form-box">
+      <div class="form-tabs">
+        <button class="form-tab ab" onclick="switchFormTab('buy',this)">+ Receive Inventory</button>
+        <button class="form-tab" onclick="switchFormTab('sell',this)">− Record Sale</button>
+        <button class="form-tab" onclick="switchFormTab('break',this)">✂ Break for Singles</button>
+      </div>
+      <div class="isf active" id="inv-buy-form">
+        <div class="fr c5">
+          <div class="fg"><label>Product / Sealed SKU</label><input type="text" id="buy-sku" placeholder="e.g. Tarkir Dragonstorm Collector Box"/></div>
+          <div class="fg"><label>Game</label>
+            <select id="buy-game">
+              <option value="">— Select —</option>
+              <option value="Pokemon">Pokemon</option>
+              <option value="Magic">Magic: The Gathering</option>
+              <option value="Lorcana">Lorcana</option>
+              <option value="Yu-Gi-Oh">Yu-Gi-Oh</option>
+              <option value="One Piece">One Piece</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="fg"><label>Expansion / Set</label><input type="text" id="buy-expansion" placeholder="e.g. Tarkir Dragonstorm"/></div>
+          <div class="fg"><label>Product Type</label><input type="text" id="buy-prodtype" placeholder="e.g. Collector Box"/></div>
+          <div class="fg"><label>Qty</label><input type="number" id="buy-qty" value="1" min="1"/></div>
+          <div class="fg"><label>Unit Cost ($)</label><input type="number" id="buy-cost" placeholder="0.00" step="0.01"/></div>
+          <div class="fg"><label>Market Price ($)</label><input type="number" id="buy-mktprice" placeholder="0.00" step="0.01" title="Current market price per unit — used for chart analysis"/></div>
+          <div class="fg"><label>Date</label><input type="date" id="buy-date"/></div>
+          <button class="btn" onclick="receiveInventory()" style="grid-column:span 1">Receive</button>
+        </div>
+        <div class="hint">Game, Expansion, and Product Type power the analysis charts. Market Price is used for portfolio value tracking — re-enter it when prices change to build a history.</div>
+      </div>
+      <div class="isf" id="inv-sell-form">
+        <div class="fr c5">
+          <div class="fg"><label>Sealed SKU</label><select id="sell-sku"><option value="">— Select —</option></select></div>
+          <div class="fg"><label>Qty Sold</label><input type="number" id="sell-qty" value="1" min="1" oninput="updateSellPreview()"/></div>
+          <div class="fg"><label>Sale Price / Unit ($)</label><input type="number" id="sell-price" placeholder="0.00" step="0.01"/></div>
+          <div class="fg"><label>Date</label><input type="date" id="sell-date"/></div>
+          <button class="btn btn-sale" onclick="openSaleModal()">Record Sale</button>
+        </div>
+        <div id="sell-preview" class="hint">Select a SKU and qty to preview estimated COGS.</div>
+      </div>
+      <div class="isf" id="inv-break-form">
+        <div class="fr c5">
+          <div class="fg"><label>Sealed SKU to Break</label><select id="break-sku"><option value="">— Select —</option></select></div>
+          <div class="fg"><label>Qty to Break</label><input type="number" id="break-qty" value="1" min="1" oninput="updateBreakPreview()"/></div>
+          <div class="fg"><label>Notes (optional)</label><input type="text" id="break-notes" placeholder="e.g. SV07 box pulls..."/></div>
+          <div class="fg"><label>Date</label><input type="date" id="break-date"/></div>
+          <button class="btn btn-break" onclick="openBreakModal()">✂ Break</button>
+        </div>
+        <div id="break-preview" class="hint">Cost is fully recognized at break time — no per-card tracking needed.</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:20px">
+      <div>
+        <div class="sh">
+          <span class="st">Inventory on Hand</span>
+          <div class="filter-row">
+            <button class="fb active" onclick="setInvF('all',this)">All</button>
+            <button class="fb" onclick="setInvF('in-stock',this)">In Stock</button>
+            <button class="fb" onclick="setInvF('depleted',this)">Depleted</button>
+          </div>
+        </div>
+        <div class="tw sc" style="max-height:320px">
+          <table><thead><tr><th>SKU</th><th>On Hand</th><th>Avg Cost</th><th>Inv Value</th></tr></thead>
+          <tbody id="inv-hand-body"></tbody></table>
+        </div>
+      </div>
+      <div>
+        <div class="sh">
+          <span class="st">FIFO Lot Detail</span>
+          <select id="lot-sku-filter" onchange="renderLots()" style="max-width:170px;padding:4px 9px;font-size:10.5px"><option value="">All SKUs</option></select>
+        </div>
+        <div class="tw sc" style="max-height:320px">
+          <table><thead><tr><th>SKU</th><th>Received</th><th>Lot Qty</th><th>Remaining</th><th>Unit Cost</th></tr></thead>
+          <tbody id="inv-lots-body"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SKU META / TAGGING ── -->
+    <div class="sku-meta-panel" id="sku-meta-panel">
+      <div class="sku-meta-title">SKU Tagging &amp; Market Prices <span style="font-weight:400;font-size:9.5px;color:var(--muted);margin-left:8px">Tag existing SKUs with game / expansion / product type and set current market prices</span></div>
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;gap:8px;align-items:end;margin-bottom:8px">
+        <div class="fg"><label>SKU</label><select id="meta-sku-sel"><option value="">— Select SKU —</option></select></div>
+        <div class="fg"><label>Game</label>
+          <select id="meta-game">
+            <option value="">— Select —</option>
+            <option value="Pokemon">Pokemon</option>
+            <option value="Magic">Magic: The Gathering</option>
+            <option value="Lorcana">Lorcana</option>
+            <option value="Yu-Gi-Oh">Yu-Gi-Oh</option>
+            <option value="One Piece">One Piece</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="fg"><label>Expansion / Set</label><input type="text" id="meta-expansion" placeholder="e.g. Tarkir Dragonstorm"/></div>
+        <div class="fg"><label>Product Type</label><input type="text" id="meta-prodtype" placeholder="e.g. Collector Box"/></div>
+        <div class="fg"><label>Market Price ($)</label><input type="number" id="meta-mktprice" placeholder="0.00" step="0.01"/></div>
+        <button class="btn btn-sm" onclick="saveSkuMetaForm()" style="height:34px;align-self:end">Save</button>
+      </div>
+      <div class="sku-meta-list" id="sku-meta-list"></div>
+    </div>
+
+    <!-- ── INVENTORY CHARTS ── -->
+    <div class="charts-section">
+
+      <!-- Game filter — scopes all charts below -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+        <span style="font-size:9.5px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;font-family:'Syne',sans-serif;font-weight:700">Filter Charts by Game</span>
+        <div class="filter-row" id="inv-game-filter-row">
+          <button class="fb active" onclick="setInvGameFilter('',this)">All Games</button>
+        </div>
+      </div>
+
+      <div class="chart-grid-2">
+
+        <!-- Chart 1: By Game -->
+        <div class="chart-box">
+          <div class="chart-title">Inventory by Game</div>
+          <div class="chart-subtitle">On-hand units and cost value per TCG</div>
+          <div class="chart-tabs">
+            <button class="chart-tab active" onclick="setChartMode('game','qty',this)">Qty</button>
+            <button class="chart-tab" onclick="setChartMode('game','value',this)">Value</button>
+          </div>
+          <div class="hbar-wrap" id="chart-game"></div>
+        </div>
+
+        <!-- Chart 2: By Expansion -->
+        <div class="chart-box">
+          <div class="chart-title">Inventory by Expansion</div>
+          <div class="chart-subtitle">On-hand units and cost value per set</div>
+          <div class="chart-tabs">
+            <button class="chart-tab active" onclick="setChartMode('expansion','qty',this)">Qty</button>
+            <button class="chart-tab" onclick="setChartMode('expansion','value',this)">Value</button>
+          </div>
+          <div class="hbar-wrap" id="chart-expansion"></div>
+        </div>
+
+        <!-- Chart 3: By Product Type -->
+        <div class="chart-box">
+          <div class="chart-title">Inventory by Product Type</div>
+          <div class="chart-subtitle">On-hand units and cost value per product format</div>
+          <div class="chart-tabs">
+            <button class="chart-tab active" onclick="setChartMode('product','qty',this)">Qty</button>
+            <button class="chart-tab" onclick="setChartMode('product','value',this)">Value</button>
+          </div>
+          <div class="hbar-wrap" id="chart-product"></div>
+        </div>
+
+        <!-- Chart 4: Market Value Over Time -->
+        <div class="chart-box full">
+          <div class="chart-title">Portfolio Market Value — History</div>
+          <div class="chart-subtitle">Total market value of on-hand inventory over time based on recorded price snapshots</div>
+          <div class="chart-tabs">
+            <button class="chart-tab active" onclick="setMvtWindow(30,this)">1M</button>
+            <button class="chart-tab" onclick="setMvtWindow(90,this)">3M</button>
+            <button class="chart-tab" onclick="setMvtWindow(365,this)">12M</button>
+            <button class="chart-tab" onclick="setMvtWindow(0,this)">All</button>
+          </div>
+          <div id="chart-mvt-wrap" style="width:100%;min-height:140px"></div>
+        </div>
+
+        <!-- Chart 5: Cost vs Market (Profit View) -->
+        <div class="chart-box full">
+          <div class="chart-title">Cost vs Market Value — Per SKU</div>
+          <div class="chart-subtitle">Cost basis (red) vs current market value (green) for each SKU with on-hand units</div>
+          <div class="hbar-wrap" id="chart-profit" style="gap:10px"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="sh"><span class="st">Sales Ledger</span><span id="ledger-count" style="font-size:10.5px;color:var(--muted)"></span></div>
+    <div class="tw sc" style="max-height:280px;margin-bottom:20px">
+      <table><thead><tr><th>Date</th><th>SKU</th><th>Qty</th><th>Sale/Unit</th><th>Revenue</th><th>COGS (FIFO)</th><th>Gross Profit</th><th>Margin</th><th></th></tr></thead>
+      <tbody id="sales-ledger-body"></tbody></table>
+    </div>
+
+    <div class="sh"><span class="st" style="color:var(--break)">Break Ledger</span><span id="break-ledger-count" style="font-size:10.5px;color:var(--muted)"></span></div>
+    <div class="tw sc" style="max-height:240px">
+      <table><thead><tr><th>Date</th><th>Sealed SKU</th><th>Units Broken</th><th>COGS Recognized</th><th>Cost/Unit</th><th>Notes</th><th></th></tr></thead>
+      <tbody id="break-ledger-body"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ SINGLES / TCGPLAYER ══════════════ -->
+<div id="tab-singles" class="tab-panel">
+  <div class="tcg-panel">
+
+    <!-- KPIs -->
+    <div class="cards c4g" style="margin-bottom:22px">
+      <div class="card hl-tcg"><div class="lbl">Singles SKUs</div><div class="val" id="sk-count" style="color:var(--tcg)">0</div><div class="sub" id="sk-qty-sub">0 total qty</div></div>
+      <div class="card"><div class="lbl">Total Qty Listed</div><div class="val" id="sk-listed" style="color:var(--accent4)">0</div><div class="sub" id="sk-listed-sub">across all SKUs</div></div>
+      <div class="card"><div class="lbl">Est. Market Value</div><div class="val" id="sk-mkt-val" style="color:var(--sale)">$0.00</div><div class="sub">qty × market price</div></div>
+      <div class="card hl"><div class="lbl">Last Import</div><div class="val" id="sk-import-date" style="font-size:13px">—</div><div class="sub" id="sk-import-sub">no imports yet</div></div>
+    </div>
+
+    <!-- CSV Import -->
+    <div class="sh" style="margin-bottom:12px"><span class="st">CSV Import</span><span style="font-size:10.5px;color:var(--muted)">Replaces quantities & prices; preserves TCGPlayer IDs</span></div>
+
+    <div class="drop-zone" id="drop-zone">
+      <input type="file" accept=".csv" id="csv-file-input" onchange="handleFileSelect(event)"/>
+      <div class="dz-icon">📂</div>
+      <div class="dz-title">Drop your TCGPlayer CSV here</div>
+      <div class="dz-sub">or click to browse · accepts any CSV export from TCGPlayer, BinderPOS, or custom exports<br/>Fields detected automatically — you'll map them before importing</div>
+      <div class="dz-badge">CSV</div>
+    </div>
+
+    <!-- Column mapper (shown after file loads) -->
+    <div class="mapper-box" id="mapper-box">
+      <div class="mapper-title">Map CSV Columns → Fields</div>
+      <div class="hint" style="margin-bottom:14px">Match your CSV's column headers to the fields below. Only <strong style="color:var(--text)">Card Name</strong> is required. Unmapped fields will be left blank.</div>
+      <div class="mapper-grid" id="mapper-grid"></div>
+      <div class="mapper-actions">
+        <button class="btn btn-tcg" onclick="previewImport()">Preview Import →</button>
+        <button class="btn btn-outline btn-sm" onclick="resetImport()">Cancel</button>
+        <div class="mapper-summary" id="mapper-summary"></div>
+      </div>
+    </div>
+
+    <!-- Preview (shown after mapping) -->
+    <div class="preview-box" id="preview-box">
+      <div class="preview-header">
+        <span class="preview-title" id="preview-title">Import Preview</span>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-tcg btn-sm" onclick="confirmImport()">✓ Import All</button>
+          <button class="btn btn-outline btn-sm" onclick="backToMapper()">← Remap</button>
+          <button class="btn btn-danger btn-sm" onclick="resetImport()">Cancel</button>
+        </div>
+      </div>
+      <div class="preview-scroll">
+        <table><thead><tr><th>Status</th><th>Card Name</th><th>TCGPlayer ID</th><th>Set</th><th>Condition</th><th>Qty</th><th>Market Price</th></tr></thead>
+        <tbody id="preview-body"></tbody></table>
+      </div>
+    </div>
+
+    <!-- Import history -->
+    <div id="import-history" class="import-hist" style="display:none"></div>
+
+    <!-- ── SINGLES CHARTS ── -->
+    <div id="singles-charts-wrap">
+      <div class="chart-grid-2" style="margin-bottom:0">
+
+        <!-- Chart 1: By Expansion -->
+        <div class="chart-box">
+          <div class="chart-title">Singles by Expansion / Set</div>
+          <div class="chart-subtitle">Qty on hand and market value grouped by set</div>
+          <div class="chart-tabs">
+            <button class="chart-tab active" onclick="setSinglesChartMode('expansion','qty',this)">Qty</button>
+            <button class="chart-tab" onclick="setSinglesChartMode('expansion','value',this)">Market Value</button>
+          </div>
+          <div class="hbar-wrap" id="sk-chart-expansion"></div>
+        </div>
+
+        <!-- Chart 2: By Rarity -->
+        <div class="chart-box">
+          <div class="chart-title">Singles by Rarity</div>
+          <div class="chart-subtitle">Qty on hand and market value grouped by rarity</div>
+          <div class="chart-tabs">
+            <button class="chart-tab active" onclick="setSinglesChartMode('rarity','qty',this)">Qty</button>
+            <button class="chart-tab" onclick="setSinglesChartMode('rarity','value',this)">Market Value</button>
+          </div>
+          <div class="hbar-wrap" id="sk-chart-rarity"></div>
+        </div>
+
+        <!-- Chart 3: Market vs Listed Price delta -->
+        <div class="chart-box full" style="margin-top:0">
+          <div class="chart-title">Market Price vs My Listed Price</div>
+          <div class="chart-subtitle">Cards where your TCGPlayer listed price differs from market — positive = listed above market, negative = listed below</div>
+          <div style="display:flex;gap:12px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+            <div class="chart-tabs" style="margin-bottom:0">
+              <button class="chart-tab active" onclick="setSkPriceSort('delta',this)">By Delta</button>
+              <button class="chart-tab" onclick="setSkPriceSort('name',this)">By Name</button>
+              <button class="chart-tab" onclick="setSkPriceSort('mkt',this)">By Mkt Value</button>
+            </div>
+            <label style="display:flex;align-items:center;gap:6px;font-size:10px;cursor:pointer;font-family:'DM Mono',monospace">
+              <input type="checkbox" id="sk-price-in-stock-only" onchange="renderSkPriceChart()" style="width:auto;accent-color:var(--tcg)"/>
+              In-stock only
+            </label>
+            <input type="text" id="sk-price-search" placeholder="Filter by name or set..." style="max-width:180px;padding:4px 9px;font-size:11px" oninput="renderSkPriceChart()"/>
+          </div>
+          <div id="sk-chart-price" style="max-height:420px;overflow-y:auto"></div>
+          <div id="sk-price-summary" style="font-size:10px;color:var(--muted);margin-top:10px;padding-top:10px;border-top:1px solid var(--border)"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Singles Table -->
+    <div class="sh" style="margin-top:18px">
+      <span class="st">Singles Registry <span id="singles-count-badge" style="font-family:'DM Mono',monospace;font-weight:400;font-size:10.5px;color:var(--muted)"></span></span>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <div class="filter-row">
+          <button class="fb active" onclick="setSinglesFilter('all',this)">All</button>
+          <button class="fb" onclick="setSinglesFilter('in-stock',this)">In Stock</button>
+          <button class="fb" onclick="setSinglesFilter('no-price',this)">No Price</button>
+        </div>
+        <input type="text" id="sk-search" placeholder="Search name, set, ID..." style="max-width:160px;padding:4px 9px;font-size:11px" oninput="renderSingles()"/>
+        <button class="btn btn-danger btn-sm" onclick="clearAllSingles()" title="Clear all singles data">Clear All</button>
+      </div>
+    </div>
+    <div class="tw sc" style="max-height:480px;margin-top:10px">
+      <table>
+        <thead><tr>
+          <th>Card Name</th><th>TCGPlayer ID</th><th>Set</th><th>Rarity</th><th>Condition</th>
+          <th>Qty on Hand</th><th>Qty Listed</th><th>Market Price</th><th>Listed Price</th><th>Market Value</th><th>Last Updated</th>
+        </tr></thead>
+        <tbody id="singles-body"></tbody>
+      </table>
+    </div>
+
+    <!-- ── PRICE SNAPSHOT LOG ── -->
+    <div class="snap-section">
+      <div class="sh">
+        <span class="st">Price History</span>
+        <span style="font-size:10.5px;color:var(--muted)">Market price snapshots recorded automatically on each import</span>
+      </div>
+
+      <!-- Card picker + chart -->
+      <div class="snap-card-picker">
+        <div class="fg" style="flex:2;min-width:200px">
+          <label>View price history for card</label>
+          <select id="snap-card-sel" onchange="renderSnapChart()" style="width:100%">
+            <option value="">— Select a card —</option>
+          </select>
+        </div>
+        <div class="fg" style="flex:1;min-width:120px">
+          <label>Filter by set</label>
+          <select id="snap-set-filter" onchange="populateSnapCardSel(); renderSnapChart()" style="width:100%">
+            <option value="">All Sets</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:6px;align-items:end;padding-bottom:1px">
+          <div class="chart-tabs" style="margin-bottom:0">
+            <button class="chart-tab active" id="snap-win-btn-30"  onclick="setSnapWindow(30,this)">1M</button>
+            <button class="chart-tab"        id="snap-win-btn-90"  onclick="setSnapWindow(90,this)">3M</button>
+            <button class="chart-tab"        id="snap-win-btn-365" onclick="setSnapWindow(365,this)">12M</button>
+            <button class="chart-tab"        id="snap-win-btn-0"   onclick="setSnapWindow(0,this)">All</button>
+          </div>
+        </div>
+      </div>
+      <div class="snap-chart-box" id="snap-chart-box">
+        <div class="snap-empty">Select a card above to view its price history over time.</div>
+      </div>
+
+      <!-- Full snapshot log table -->
+      <div class="sh" style="margin-top:4px">
+        <span class="st">All Snapshots</span>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input type="text" id="snap-log-search" placeholder="Search card name or set..." style="max-width:200px;padding:4px 9px;font-size:11px" oninput="renderSnapLog()"/>
+          <select id="snap-log-set" onchange="renderSnapLog()" style="max-width:140px;padding:4px 9px;font-size:10.5px">
+            <option value="">All Sets</option>
+          </select>
+          <span id="snap-log-count" style="font-size:10.5px;color:var(--muted)"></span>
+        </div>
+      </div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:11px;padding:12px 14px;margin-top:10px">
+        <div class="snap-hist-row snap-hist-hdr" style="margin-bottom:4px">
+          <span>Date</span><span>Card</span><span>Market Price</span><span>Qty on Hand</span><span>Total Value</span>
+        </div>
+        <div id="snap-log-body" style="max-height:380px;overflow-y:auto">
+          <div class="snap-empty">No price history yet. Price snapshots are recorded automatically each time you import a CSV.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+<div id="tab-sold" class="tab-panel">
+  <div class="tab-panel-inner">
+    <div class="cards c4g" style="margin-bottom:22px">
+      <div class="card hl-sold"><div class="lbl">Total Units Sold</div><div class="val" id="sold-total-units" style="color:var(--accent4)">0</div><div class="sub" id="sold-total-sub">across all imports</div></div>
+      <div class="card"><div class="lbl">Unique Cards Sold</div><div class="val" id="sold-unique" style="color:var(--text)">0</div><div class="sub">distinct card names</div></div>
+      <div class="card"><div class="lbl">Top Seller</div><div class="val" id="sold-top-name" style="font-size:12px;line-height:1.3">—</div><div class="sub" id="sold-top-qty"></div></div>
+      <div class="card hl"><div class="lbl">Last Import</div><div class="val" id="sold-last-import" style="font-size:13px">—</div><div class="sub" id="sold-last-sub">no imports yet</div></div>
+    </div>
+
+    <div class="sh" style="margin-bottom:12px">
+      <span class="st">Import Sold Quantities</span>
+      <span style="font-size:10.5px;color:var(--muted)">Quantities are cumulative — each import adds to running totals</span>
+    </div>
+    <div class="drop-zone" id="sold-drop-zone" style="margin-bottom:16px">
+      <input type="file" accept=".csv" id="sold-csv-input" onchange="handleSoldFileSelect(event)"/>
+      <div class="dz-icon">📊</div>
+      <div class="dz-title">Drop your TCGPlayer Sales Qty CSV here</div>
+      <div class="dz-sub">or click to browse · quantities are added to existing running totals per card<br/>Map your columns after upload — Card Name and Quantity Sold are required</div>
+      <div class="dz-badge">CSV · QTY ONLY</div>
+    </div>
+
+    <div class="mapper-box" id="sold-mapper-box">
+      <div class="mapper-title">Map CSV Columns → Fields</div>
+      <div class="hint" style="margin-bottom:14px"><strong style="color:var(--text)">Card Name</strong> and <strong style="color:var(--text)">Quantity Sold</strong> are required.</div>
+      <div class="mapper-grid" id="sold-mapper-grid"></div>
+      <div class="mapper-actions">
+        <button class="btn btn-tcg" onclick="previewSoldImport()">Preview →</button>
+        <button class="btn btn-outline btn-sm" onclick="resetSoldImport()">Cancel</button>
+        <div class="mapper-summary" id="sold-mapper-summary"></div>
+      </div>
+    </div>
+
+    <div class="preview-box" id="sold-preview-box">
+      <div class="preview-header">
+        <span class="preview-title" id="sold-preview-title">Sold Import Preview</span>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-tcg btn-sm" onclick="confirmSoldImport()">✓ Import &amp; Add Quantities</button>
+          <button class="btn btn-outline btn-sm" onclick="backToSoldMapper()">← Remap</button>
+          <button class="btn btn-danger btn-sm" onclick="resetSoldImport()">Cancel</button>
+        </div>
+      </div>
+      <div class="preview-scroll">
+        <table><thead><tr><th>Card Name</th><th>Set</th><th>Condition</th><th>Qty This Import</th><th>Current Total</th><th>New Total</th></tr></thead>
+        <tbody id="sold-preview-body"></tbody></table>
+      </div>
+    </div>
+
+    <div id="sold-import-hist" class="import-hist" style="display:none"></div>
+
+    <div style="display:grid;grid-template-columns:320px 1fr;gap:18px;margin-top:4px">
+      <div>
+        <div class="sh"><span class="st">Top Sellers</span></div>
+        <div class="tw sc" style="max-height:520px">
+          <table><thead><tr><th>#</th><th>Card Name</th><th>Set</th><th>Units Sold</th></tr></thead>
+          <tbody id="sold-top-body"></tbody></table>
+        </div>
+      </div>
+      <div>
+        <div class="sh">
+          <span class="st">All Sold Cards <span id="sold-all-badge" style="font-family:'DM Mono',monospace;font-weight:400;font-size:10.5px;color:var(--muted)"></span></span>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="text" id="sold-search" placeholder="Search card or set..." style="max-width:180px;padding:4px 9px;font-size:11px" oninput="renderSold()"/>
+            <button class="btn btn-danger btn-sm" onclick="clearSoldData()">Clear All</button>
+          </div>
+        </div>
+        <div class="tw sc" style="max-height:520px">
+          <table><thead><tr><th>Card Name</th><th>Set</th><th>Condition</th><th>Units Sold</th><th>% of Total</th></tr></thead>
+          <tbody id="sold-all-body"></tbody></table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ TCG REVENUE ══════════════ -->
+<div id="tab-revenue" class="tab-panel">
+  <div class="tab-panel-inner">
+    <div class="cards c4g" style="margin-bottom:22px">
+      <div class="card hl-rev"><div class="lbl">Total TCG Revenue</div><div class="val" id="rev-total" style="color:var(--sale)">$0.00</div><div class="sub" id="rev-total-sub">all time</div></div>
+      <div class="card"><div class="lbl">Best Month</div><div class="val" id="rev-best-month" style="font-size:13px;line-height:1.3">—</div><div class="sub" id="rev-best-val"></div></div>
+      <div class="card"><div class="lbl">Monthly Average</div><div class="val" id="rev-avg" style="color:var(--text)">$0.00</div><div class="sub" id="rev-avg-sub">per month tracked</div></div>
+      <div class="card hl"><div class="lbl">Last Import</div><div class="val" id="rev-last-import" style="font-size:13px">—</div><div class="sub" id="rev-last-sub">no imports yet</div></div>
+    </div>
+
+    <div class="sh" style="margin-bottom:12px">
+      <span class="st">Import Monthly Revenue</span>
+      <span style="font-size:10.5px;color:var(--muted)">Existing months are overwritten; new months are appended</span>
+    </div>
+    <div class="drop-zone" id="rev-drop-zone" style="margin-bottom:16px">
+      <input type="file" accept=".csv" id="rev-csv-input" onchange="handleRevFileSelect(event)"/>
+      <div class="dz-icon">💰</div>
+      <div class="dz-title">Drop your TCGPlayer Revenue Summary CSV here</div>
+      <div class="dz-sub">or click to browse · one row per month with a revenue/sales total column<br/>Map your columns after upload — Month and Revenue are required</div>
+      <div class="dz-badge">CSV · MONTHLY REVENUE</div>
+    </div>
+
+    <div class="mapper-box" id="rev-mapper-box">
+      <div class="mapper-title">Map CSV Columns → Fields</div>
+      <div class="hint" style="margin-bottom:14px"><strong style="color:var(--text)">Month</strong> and <strong style="color:var(--text)">Revenue</strong> are required. Month can be "YYYY-MM", "Jan 2025", a date, or similar.</div>
+      <div class="mapper-grid" id="rev-mapper-grid"></div>
+      <div class="mapper-actions">
+        <button class="btn btn-tcg" onclick="previewRevImport()">Preview →</button>
+        <button class="btn btn-outline btn-sm" onclick="resetRevImport()">Cancel</button>
+        <div class="mapper-summary" id="rev-mapper-summary"></div>
+      </div>
+    </div>
+
+    <div class="preview-box" id="rev-preview-box">
+      <div class="preview-header">
+        <span class="preview-title" id="rev-preview-title">Revenue Import Preview</span>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-sale btn-sm" onclick="confirmRevImport()">✓ Import Revenue</button>
+          <button class="btn btn-outline btn-sm" onclick="backToRevMapper()">← Remap</button>
+          <button class="btn btn-danger btn-sm" onclick="resetRevImport()">Cancel</button>
+        </div>
+      </div>
+      <div class="preview-scroll">
+        <table><thead><tr><th>Status</th><th>Month</th><th>Revenue</th><th>Orders</th><th>Notes</th></tr></thead>
+        <tbody id="rev-preview-body"></tbody></table>
+      </div>
+    </div>
+
+    <div id="rev-import-hist" class="import-hist" style="display:none"></div>
+
+    <!-- Bar chart -->
+    <div class="bar-chart" id="rev-chart-wrap" style="display:none">
+      <div class="bar-chart-title">Monthly Revenue — last 24 months</div>
+      <div class="bars-wrap" id="rev-bars"></div>
+    </div>
+
+    <div class="sh" style="margin-top:4px">
+      <span class="st">Monthly Breakdown</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="rev-year-filter" onchange="renderRevenue()" style="padding:4px 9px;font-size:11px;max-width:110px"><option value="">All Years</option></select>
+        <button class="btn btn-danger btn-sm" onclick="clearRevData()">Clear All</button>
+      </div>
+    </div>
+    <div class="month-grid" id="rev-month-grid" style="margin-top:10px"></div>
+
+    <div class="sh" style="margin-top:20px"><span class="st">Revenue Ledger</span><span id="rev-ledger-count" style="font-size:10.5px;color:var(--muted)"></span></div>
+    <div class="tw sc" style="max-height:340px;margin-top:10px">
+      <table><thead><tr><th>Month</th><th>Revenue</th><th>Orders</th><th>Avg Order Value</th><th>Notes</th><th></th></tr></thead>
+      <tbody id="rev-ledger-body"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SALE MODAL ══ -->
+<div class="mo" id="sale-modal">
+  <div class="modal">
+    <div class="modal-title">Confirm Sale</div>
+    <div class="modal-sub" id="m-sale-sub"></div>
+    <div class="fifo-box" id="m-sale-fifo"></div>
+    <div class="modal-grid mg3">
+      <div class="fg"><label>Revenue</label><input id="m-sale-rev" readonly style="color:var(--sale)"/></div>
+      <div class="fg"><label>COGS (FIFO)</label><input id="m-sale-cogs" readonly style="color:var(--accent3)"/></div>
+      <div class="fg"><label>Gross Profit</label><input id="m-sale-gp" readonly/></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-danger btn-sm" onclick="closeModal('sale-modal')">Cancel</button>
+      <button class="btn btn-sale btn-sm" onclick="confirmSale()">Confirm &amp; Record</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ BREAK MODAL ══ -->
+<div class="mo" id="break-modal">
+  <div class="modal">
+    <div class="modal-title" style="color:var(--break)">✂ Confirm Break for Singles</div>
+    <div class="modal-sub" id="m-break-sub"></div>
+    <div class="fifo-box" id="m-break-fifo"></div>
+    <div class="modal-grid mg2" style="margin-bottom:12px">
+      <div class="fg"><label>Total COGS Recognized</label><input id="m-break-cost" readonly style="color:var(--break)"/></div>
+      <div class="fg"><label>Cost / Unit Broken</label><input id="m-break-cpu" readonly style="color:var(--muted)"/></div>
+    </div>
+    <div class="hint" style="margin-bottom:0">Full cost is recognized now. No per-card tracking — singles revenue will appear as pure gain against this expensed cost.</div>
+    <div class="modal-actions">
+      <button class="btn btn-danger btn-sm" onclick="closeModal('break-modal')">Cancel</button>
+      <button class="btn btn-break btn-sm" onclick="confirmBreak()">Confirm Break</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════════
+let logs    = JSON.parse(localStorage.getItem('tcg_logs')    || '[]');
+let tasks   = JSON.parse(localStorage.getItem('tcg_tasks')   || '[]');
+let lots    = JSON.parse(localStorage.getItem('tcg_lots')    || '[]');
+let sales   = JSON.parse(localStorage.getItem('tcg_sales')   || '[]');
+let breaks  = JSON.parse(localStorage.getItem('tcg_breaks')  || '[]');
+// singles: { id, name, tcgId, set, rarity, condition, qtyOnHand, qtyListed, marketPrice, tcgListedPrice, lastUpdated, priceHistory:[{date,price,qty,totalValue}] }
+let singles = JSON.parse(localStorage.getItem('tcg_singles') || '[]');
+let imports = JSON.parse(localStorage.getItem('tcg_imports') || '[]'); // import history
+
+let selectedDate  = new Date();
+let calView       = new Date();
+let taskFilter    = 'all';
+let invFilter     = 'all';
+let singlesFilter = 'all';
+let pendingSale   = null;
+let pendingBreak  = null;
+
+// CSV import state
+let csvHeaders   = [];
+let csvRows      = [];
+let csvMapped    = {};
+let previewData  = [];
+
+// ══════════════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════════════
+const today    = () => new Date();
+const isoDate  = d  => d.toISOString().split('T')[0];
+const todayIso = () => isoDate(today());
+const fmtDate  = d  => new Date(d+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+const fmt$     = v  => '$'+Number(v).toFixed(2);
+const save     = () => {
+  localStorage.setItem('tcg_logs',    JSON.stringify(logs));
+  localStorage.setItem('tcg_tasks',   JSON.stringify(tasks));
+  localStorage.setItem('tcg_lots',    JSON.stringify(lots));
+  localStorage.setItem('tcg_sales',   JSON.stringify(sales));
+  localStorage.setItem('tcg_breaks',  JSON.stringify(breaks));
+  localStorage.setItem('tcg_singles', JSON.stringify(singles));
+  localStorage.setItem('tcg_imports', JSON.stringify(imports));
+  localStorage.setItem('tcg_releases',JSON.stringify(releases));
+  localStorage.setItem('tcg_sku_meta',JSON.stringify(skuMeta));
+  // also flush sold/rev if already initialized (safe no-op if not yet)
+  try{localStorage.setItem('tcg_sold',JSON.stringify(soldCards));localStorage.setItem('tcg_sold_imports',JSON.stringify(soldImports));localStorage.setItem('tcg_rev_months',JSON.stringify(revMonths));localStorage.setItem('tcg_rev_imports',JSON.stringify(revImports));}catch(e){}
+};
+
+// ══════════════════════════════════════════════════════════════
+// TABS
+// ══════════════════════════════════════════════════════════════
+function switchTab(id, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  btn.classList.add('active');
+  if (id==='inventory') { populateInvDropdowns(); renderInventory(); renderLots(); renderSalesLedger(); renderBreakLedger(); renderInvCharts(); }
+  if (id==='singles')   { renderSingles(); renderSinglesKPIs(); renderImportHistory(); renderSinglesCharts(); renderSnapUI(); }
+  if (id==='sold')      { renderSold(); renderSoldKPIs(); renderSoldImportHist(); }
+  if (id==='revenue')   { renderRevenue(); renderRevKPIs(); renderRevChart(); renderRevImportHist(); }
+}
+
+// ══════════════════════════════════════════════════════════════
+// CALENDAR
+// ══════════════════════════════════════════════════════════════
+function renderCalendar() {
+  const year=calView.getFullYear(), month=calView.getMonth();
+  document.getElementById('cal-month-label').textContent=calView.toLocaleString('default',{month:'long',year:'numeric'});
+  const grid=document.getElementById('calendar-grid'); grid.innerHTML='';
+  ['SUN','MON','TUE','WED','THU','FRI','SAT'].forEach(d=>{const el=document.createElement('div');el.className='cdl';el.textContent=d;grid.appendChild(el);});
+  const start=new Date(year,month,1); start.setDate(1-start.getDay());
+  const t=todayIso(), sel=isoDate(selectedDate);
+  const colorMap={purchase:'var(--purchase)',listing:'var(--listing)',expense:'var(--expense)',sale:'var(--sale)','inv-buy':'var(--purchase)',break:'var(--break)'};
+  for(let i=0;i<42;i++){
+    const d=new Date(start); d.setDate(start.getDate()+i);
+    const ds=isoDate(d);
+    const dots=[...logs.filter(l=>l.date===ds).map(l=>l.type),...sales.filter(s=>s.date===ds).map(()=>'sale'),...lots.filter(l=>l.date===ds).map(()=>'inv-buy'),...breaks.filter(b=>b.date===ds).map(()=>'break')];
+    const el=document.createElement('div'); el.className='cd';
+    if(d.getMonth()!==month) el.classList.add('om');
+    if(ds===t) el.classList.add('today'); else if(ds===sel) el.classList.add('sel');
+    el.innerHTML=`<span>${d.getDate()}</span>`;
+    if(dots.length){const dc=document.createElement('div');dc.className='cal-dots';dots.slice(0,6).forEach(type=>{const dot=document.createElement('div');dot.className='cal-dot';dot.style.background=colorMap[type]||'var(--muted)';dc.appendChild(dot);});el.appendChild(dc);}
+    el.onclick=()=>{selectedDate=new Date(d);document.getElementById('log-section-title').textContent=`Log Activity — ${fmtDate(ds)}`;renderCalendar();};
+    grid.appendChild(el);
+  }
+}
+function changeMonth(dir){calView.setMonth(calView.getMonth()+dir);renderCalendar();}
+
+// ══════════════════════════════════════════════════════════════
+// ACTIVITY LOG
+// ══════════════════════════════════════════════════════════════
+function addLog(){
+  const type=document.getElementById('log-type').value;
+  const desc=document.getElementById('log-desc').value.trim();
+  const amount=parseFloat(document.getElementById('log-amount').value);
+  if(!desc||isNaN(amount)) return;
+  logs.push({id:Date.now(),date:isoDate(selectedDate),type,desc,amount});
+  save(); document.getElementById('log-desc').value=''; document.getElementById('log-amount').value='';
+  renderLog(); renderCalendar();
+}
+function deleteLog(id){logs=logs.filter(l=>l.id!==id);save();renderLog();renderCalendar();}
+function renderLog(){
+  const tbody=document.getElementById('log-body');
+  const sorted=[...logs].sort((a,b)=>b.date.localeCompare(a.date));
+  tbody.innerHTML=sorted.length===0?'<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:22px">No activity yet.</td></tr>'
+    :sorted.map(l=>`<tr><td style="color:var(--muted)">${fmtDate(l.date)}</td><td><span class="badge b-${l.type}">${l.type.toUpperCase()}</span></td><td>${l.desc}</td><td class="${l.type==='listing'?'gp':'gn'}">${l.type==='listing'?'+':'-'}${fmt$(l.amount)}</td><td><button class="btn btn-sm btn-danger" onclick="deleteLog(${l.id})">✕</button></td></tr>`).join('');
+  const sum=arr=>arr.reduce((s,x)=>s+x.amount,0);
+  const p=logs.filter(l=>l.type==='purchase'),li=logs.filter(l=>l.type==='listing'),ex=logs.filter(l=>l.type==='expense');
+  document.getElementById('sum-purchases').textContent=fmt$(sum(p));
+  document.getElementById('sub-purchases').textContent=`${p.length} purchase${p.length!==1?'s':''}`;
+  document.getElementById('sum-listings').textContent=fmt$(sum(li));
+  document.getElementById('sub-listings').textContent=`${li.length} listing${li.length!==1?'s':''}`;
+  document.getElementById('sum-expenses').textContent=fmt$(sum(ex));
+  document.getElementById('sub-expenses').textContent=`${ex.length} expense${ex.length!==1?'s':''}`;
+}
+
+// ══════════════════════════════════════════════════════════════
+// FIFO ENGINE
+// ══════════════════════════════════════════════════════════════
+function computeFIFO(sku, qtyNeeded){
+  const skuLots=lots.filter(l=>l.sku===sku&&l.qtyRemaining>0).sort((a,b)=>a.date.localeCompare(b.date)||a.id-b.id);
+  const available=skuLots.reduce((s,l)=>s+l.qtyRemaining,0);
+  if(qtyNeeded>available) return {cogs:0,breakdown:[],canFulfill:false,available};
+  let remaining=qtyNeeded,cogs=0; const breakdown=[];
+  for(const lot of skuLots){
+    if(remaining<=0) break;
+    const use=Math.min(lot.qtyRemaining,remaining),sub=use*lot.unitCost;
+    breakdown.push({lotId:lot.id,lotDate:lot.date,qtyUsed:use,unitCost:lot.unitCost,subtotal:sub});
+    cogs+=sub; remaining-=use;
+  }
+  return {cogs,breakdown,canFulfill:true,available};
+}
+function applyFIFO(breakdown){breakdown.forEach(b=>{const lot=lots.find(l=>l.id===b.lotId);if(lot) lot.qtyRemaining-=b.qtyUsed;});}
+function buildFIFOHtml(breakdown){
+  return breakdown.map(b=>`<div class="fifo-row"><span>Lot ${fmtDate(b.lotDate)} — ${b.qtyUsed} unit(s) @ ${fmt$(b.unitCost)}</span><span style="color:var(--accent3)">${fmt$(b.subtotal)}</span></div>`).join('')
+    +`<div class="fifo-row tot"><span>Total</span><span style="color:var(--accent3)">${fmt$(breakdown.reduce((s,b)=>s+b.subtotal,0))}</span></div>`;
+}
+
+// ══════════════════════════════════════════════════════════════
+// INVENTORY — RECEIVE
+// ══════════════════════════════════════════════════════════════
+function receiveInventory(){
+  const sku=document.getElementById('buy-sku').value.trim();
+  const game=document.getElementById('buy-game').value;
+  const expansion=document.getElementById('buy-expansion').value.trim();
+  const productType=document.getElementById('buy-prodtype').value.trim();
+  const qty=parseInt(document.getElementById('buy-qty').value);
+  const cost=parseFloat(document.getElementById('buy-cost').value);
+  const mktPrice=parseFloat(document.getElementById('buy-mktprice').value)||0;
+  const date=document.getElementById('buy-date').value||todayIso();
+  if(!sku||!qty||qty<1||isNaN(cost)||cost<=0){alert('Please fill SKU, Qty and Unit Cost.');return;}
+  lots.push({id:Date.now(),sku,date,qtyReceived:qty,qtyRemaining:qty,unitCost:cost});
+  upsertSkuMeta(sku, game||null, expansion||null, productType||null, mktPrice>0?mktPrice:null, date);
+  save();
+  document.getElementById('buy-sku').value='';
+  document.getElementById('buy-game').value='';
+  document.getElementById('buy-expansion').value='';
+  document.getElementById('buy-prodtype').value='';
+  document.getElementById('buy-qty').value='1';
+  document.getElementById('buy-cost').value='';
+  document.getElementById('buy-mktprice').value='';
+  populateInvDropdowns(); renderInventory(); renderLots(); renderSkuMetaList(); renderInvCharts(); updateHeader();
+}
+
+// ══════════════════════════════════════════════════════════════
+// SELL MODAL
+// ══════════════════════════════════════════════════════════════
+function updateSellPreview(){
+  const sku=document.getElementById('sell-sku').value,qty=parseInt(document.getElementById('sell-qty').value),el=document.getElementById('sell-preview');
+  if(!sku||!qty||qty<1){el.textContent='Select a SKU and qty to preview estimated COGS.';return;}
+  const{cogs,canFulfill,available}=computeFIFO(sku,qty);
+  el.innerHTML=!canFulfill?`<span style="color:var(--accent3)">⚠ Only ${available} unit(s) in stock.</span>`:`Est. COGS: <span style="color:var(--accent3)">${fmt$(cogs)}</span> &nbsp;·&nbsp; Avg: <span style="color:var(--muted)">${fmt$(cogs/qty)}/unit</span>`;
+}
+function openSaleModal(){
+  const sku=document.getElementById('sell-sku').value,qty=parseInt(document.getElementById('sell-qty').value),price=parseFloat(document.getElementById('sell-price').value),date=document.getElementById('sell-date').value||todayIso();
+  if(!sku){alert('Select a SKU.');return;} if(!qty||qty<1){alert('Enter a valid qty.');return;} if(isNaN(price)||price<=0){alert('Enter a valid sale price.');return;}
+  const{cogs,breakdown,canFulfill,available}=computeFIFO(sku,qty);
+  if(!canFulfill){alert(`Only ${available} unit(s) in stock for "${sku}".`);return;}
+  const revenue=qty*price,gp=revenue-cogs;
+  pendingSale={sku,qty,price,date,cogs,revenue,gp,breakdown};
+  document.getElementById('m-sale-sub').textContent=`${qty}× "${sku}" @ ${fmt$(price)}/unit on ${fmtDate(date)}`;
+  document.getElementById('m-sale-fifo').innerHTML=buildFIFOHtml(breakdown);
+  document.getElementById('m-sale-rev').value=fmt$(revenue);
+  document.getElementById('m-sale-cogs').value=fmt$(cogs);
+  const gpEl=document.getElementById('m-sale-gp'); gpEl.value=fmt$(gp); gpEl.style.color=gp>=0?'var(--sale)':'var(--accent3)';
+  document.getElementById('sale-modal').classList.add('open');
+}
+function confirmSale(){
+  if(!pendingSale) return;
+  const{sku,qty,price,date,cogs,revenue,gp,breakdown}=pendingSale;
+  applyFIFO(breakdown);
+  sales.push({id:Date.now(),date,sku,qty,salePrice:price,revenue,cogs,breakdown});
+  save(); closeModal('sale-modal');
+  document.getElementById('sell-qty').value='1'; document.getElementById('sell-price').value=''; document.getElementById('sell-date').value=todayIso();
+  document.getElementById('sell-preview').textContent='Select a SKU and qty to preview estimated COGS.';
+  populateInvDropdowns(); renderInventory(); renderLots(); renderSalesLedger(); updateHeader(); renderCalendar();
+}
+
+// ══════════════════════════════════════════════════════════════
+// BREAK MODAL
+// ══════════════════════════════════════════════════════════════
+function updateBreakPreview(){
+  const sku=document.getElementById('break-sku').value,qty=parseInt(document.getElementById('break-qty').value),el=document.getElementById('break-preview');
+  if(!sku||!qty||qty<1){el.textContent='Cost is fully recognized at break time — no per-card tracking needed.';return;}
+  const{cogs,canFulfill,available}=computeFIFO(sku,qty);
+  el.innerHTML=!canFulfill?`<span style="color:var(--accent3)">⚠ Only ${available} unit(s) in stock.</span>`:`COGS to recognize: <span style="color:var(--break)">${fmt$(cogs)}</span> &nbsp;·&nbsp; <span style="color:var(--muted)">${fmt$(cogs/qty)}/unit</span> — fully expensed at break`;
+}
+function openBreakModal(){
+  const sku=document.getElementById('break-sku').value,qty=parseInt(document.getElementById('break-qty').value),notes=document.getElementById('break-notes').value.trim(),date=document.getElementById('break-date').value||todayIso();
+  if(!sku){alert('Select a sealed SKU.');return;} if(!qty||qty<1){alert('Enter a valid quantity.');return;}
+  const{cogs,breakdown,canFulfill,available}=computeFIFO(sku,qty);
+  if(!canFulfill){alert(`Only ${available} unit(s) in stock for "${sku}".`);return;}
+  pendingBreak={sku,qty,notes,date,cogs,breakdown,costPerUnit:cogs/qty};
+  document.getElementById('m-break-sub').textContent=`Breaking ${qty}× "${sku}" on ${fmtDate(date)}${notes?' — '+notes:''}`;
+  document.getElementById('m-break-fifo').innerHTML=buildFIFOHtml(breakdown);
+  document.getElementById('m-break-cost').value=fmt$(cogs);
+  document.getElementById('m-break-cpu').value=fmt$(cogs/qty)+'/unit';
+  document.getElementById('break-modal').classList.add('open');
+}
+function confirmBreak(){
+  if(!pendingBreak) return;
+  const{sku,qty,notes,date,cogs,breakdown,costPerUnit}=pendingBreak;
+  applyFIFO(breakdown);
+  breaks.push({id:Date.now(),date,sku,qty,cogs,costPerUnit,breakdown,notes});
+  save(); closeModal('break-modal');
+  document.getElementById('break-qty').value='1'; document.getElementById('break-notes').value=''; document.getElementById('break-date').value=todayIso();
+  document.getElementById('break-preview').textContent='Cost is fully recognized at break time — no per-card tracking needed.';
+  populateInvDropdowns(); renderInventory(); renderLots(); renderBreakLedger(); updateHeader(); renderCalendar();
+}
+
+// ══════════════════════════════════════════════════════════════
+// FORM TABS / DROPDOWNS
+// ══════════════════════════════════════════════════════════════
+function switchFormTab(mode,btn){
+  document.querySelectorAll('.form-tab').forEach(b=>b.classList.remove('ab','as','abk'));
+  document.querySelectorAll('.isf').forEach(f=>f.classList.remove('active'));
+  const map={buy:'ab',sell:'as',break:'abk'};
+  btn.classList.add(map[mode]);
+  document.getElementById('inv-'+mode+'-form').classList.add('active');
+  if(mode==='sell'||mode==='break') populateInvDropdowns();
+}
+function populateInvDropdowns(){
+  const inStock=[...new Set(lots.filter(l=>l.qtyRemaining>0).map(l=>l.sku))].sort();
+  const all=[...new Set(lots.map(l=>l.sku))].sort();
+  ['sell-sku','break-sku'].forEach(id=>{const el=document.getElementById(id),p=el.value;el.innerHTML='<option value="">— Select —</option>'+inStock.map(s=>`<option value="${s}"${s===p?' selected':''}>${s}</option>`).join('');});
+  const ls=document.getElementById('lot-sku-filter'),lp=ls.value;
+  ls.innerHTML='<option value="">All SKUs</option>'+all.map(s=>`<option value="${s}"${s===lp?' selected':''}>${s}</option>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════════
+// RENDER — INVENTORY
+// ══════════════════════════════════════════════════════════════
+function setInvF(f,btn){invFilter=f;document.querySelectorAll('#tab-inventory .filter-row .fb').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderInventory();}
+function renderInventory(){
+  const allSkus=[...new Set(lots.map(l=>l.sku))].sort();
+  const tbody=document.getElementById('inv-hand-body');
+  const rows=allSkus.map(sku=>{
+    const sl=lots.filter(l=>l.sku===sku),oh=sl.reduce((s,l)=>s+l.qtyRemaining,0);
+    if(invFilter==='in-stock'&&oh===0) return null;
+    if(invFilter==='depleted'&&oh>0) return null;
+    const iv=sl.reduce((s,l)=>s+(l.qtyRemaining*l.unitCost),0),avg=oh>0?iv/oh:0;
+    return `<tr><td style="font-weight:500${oh===0?';color:var(--muted)':''}">${sku}</td><td><span class="qty-b ${oh===0?'zero':''}">${oh}</span></td><td style="color:var(--muted)">${fmt$(avg)}</td><td style="color:var(--purchase)">${fmt$(iv)}</td></tr>`;
+  }).filter(Boolean);
+  tbody.innerHTML=rows.length?rows.join(''):'<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:22px">No inventory.</td></tr>';
+
+  const onHand=lots.reduce((s,l)=>s+l.qtyRemaining,0);
+  const costVal=lots.reduce((s,l)=>s+(l.qtyRemaining*l.unitCost),0);
+  const totalCOGS=sales.reduce((s,s2)=>s+s2.cogs,0);
+  const brokenCost=breaks.reduce((s,b)=>s+b.cogs,0);
+  const brokenUnits=breaks.reduce((s,b)=>s+b.qty,0);
+  const totalRev=sales.reduce((s,s2)=>s+s2.revenue,0);
+  const unitsSold=sales.reduce((s,s2)=>s+s2.qty,0);
+  const gp=totalRev-totalCOGS;
+  const margin=totalRev>0?((gp/totalRev)*100).toFixed(1):'0.0';
+
+  document.getElementById('inv-cost-val').textContent=fmt$(costVal);
+  document.getElementById('inv-units-hand').textContent=`${onHand} unit${onHand!==1?'s':''} on hand`;
+  document.getElementById('inv-cogs').textContent=fmt$(totalCOGS);
+  document.getElementById('inv-units-sold').textContent=`${unitsSold} unit${unitsSold!==1?'s':''} sold`;
+  document.getElementById('inv-broken-cost').textContent=fmt$(brokenCost);
+  document.getElementById('inv-units-broken').textContent=`${brokenUnits} unit${brokenUnits!==1?'s':''} broken`;
+  document.getElementById('inv-revenue').textContent=fmt$(totalRev);
+  document.getElementById('inv-txn-count').textContent=`${sales.length} transaction${sales.length!==1?'s':''}`;
+  document.getElementById('inv-gp').textContent=fmt$(gp);
+  document.getElementById('inv-gp').style.color=gp>=0?'var(--sale)':'var(--accent3)';
+  document.getElementById('inv-margin').textContent=`${margin}% margin`;
+  updateHeader();
+}
+function renderLots(){
+  const f=document.getElementById('lot-sku-filter').value;
+  const filtered=[...lots].filter(l=>!f||l.sku===f).sort((a,b)=>a.sku.localeCompare(b.sku)||a.date.localeCompare(b.date));
+  const tbody=document.getElementById('inv-lots-body');
+  tbody.innerHTML=filtered.length?filtered.map(l=>{const dep=l.qtyRemaining===0,pct=l.qtyReceived>0?Math.round((l.qtyRemaining/l.qtyReceived)*100):0;return `<tr style="${dep?'opacity:.4':''}"><td style="font-weight:500">${l.sku}</td><td style="color:var(--muted)">${fmtDate(l.date)}</td><td>${l.qtyReceived}</td><td><span class="qty-b ${dep?'zero':''}">${l.qtyRemaining}</span><span style="font-size:9.5px;color:var(--muted);margin-left:4px">${dep?'depleted':`${pct}% left`}</span></td><td style="color:var(--purchase)">${fmt$(l.unitCost)}</td></tr>`;}).join(''):'<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:22px">No lots.</td></tr>';
+}
+function renderSalesLedger(){
+  const sorted=[...sales].sort((a,b)=>b.date.localeCompare(a.date));
+  document.getElementById('ledger-count').textContent=`${sales.length} sale${sales.length!==1?'s':''}`;
+  const tbody=document.getElementById('sales-ledger-body');
+  tbody.innerHTML=sorted.length?sorted.map(s=>{const gp=s.revenue-s.cogs,margin=s.revenue>0?((gp/s.revenue)*100).toFixed(1):'0.0';return `<tr><td style="color:var(--muted)">${fmtDate(s.date)}</td><td style="font-weight:500">${s.sku}</td><td>${s.qty}</td><td>${fmt$(s.salePrice)}</td><td class="gp">${fmt$(s.revenue)}</td><td class="gn">${fmt$(s.cogs)}</td><td class="${gp>=0?'gp':'gn'}">${fmt$(gp)}</td><td style="color:var(--muted)">${margin}%</td><td><button class="btn btn-sm btn-danger" onclick="deleteSale(${s.id})">✕</button></td></tr>`;}).join(''):'<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:22px">No sales.</td></tr>';
+}
+function deleteSale(id){if(!confirm('Delete sale? Lots will NOT be restored.')) return;sales=sales.filter(s=>s.id!==id);save();renderSalesLedger();renderInventory();updateHeader();}
+function renderBreakLedger(){
+  const sorted=[...breaks].sort((a,b)=>b.date.localeCompare(a.date));
+  document.getElementById('break-ledger-count').textContent=`${breaks.length} break${breaks.length!==1?'s':''}`;
+  const tbody=document.getElementById('break-ledger-body');
+  tbody.innerHTML=sorted.length?sorted.map(b=>`<tr><td style="color:var(--muted)">${fmtDate(b.date)}</td><td style="font-weight:500">${b.sku}</td><td>${b.qty}</td><td style="color:var(--break)">${fmt$(b.cogs)}</td><td style="color:var(--muted)">${fmt$(b.costPerUnit)}/unit</td><td style="color:var(--muted)">${b.notes||'—'}</td><td><button class="btn btn-sm btn-danger" onclick="deleteBreak(${b.id})">✕</button></td></tr>`).join(''):'<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:22px">No breaks.</td></tr>';
+}
+function deleteBreak(id){if(!confirm('Delete break? Lots will NOT be restored.')) return;breaks=breaks.filter(b=>b.id!==id);save();renderBreakLedger();renderInventory();updateHeader();}
+
+// ══════════════════════════════════════════════════════════════
+// CSV IMPORT — PARSE
+// ══════════════════════════════════════════════════════════════
+// Robust CSV parser handling quoted fields with commas/newlines
+function parseCSV(text) {
+  const lines = []; let cur = '', inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i], next = text[i+1];
+    if (c === '"') { if (inQ && next === '"') { cur += '"'; i++; } else { inQ = !inQ; } }
+    else if (c === '\n' && !inQ) { lines.push(cur); cur = ''; }
+    else if (c === '\r' && next === '\n' && !inQ) { lines.push(cur); cur = ''; i++; }
+    else { cur += c; }
+  }
+  if (cur) lines.push(cur);
+  return lines.filter(l => l.trim()).map(line => {
+    const fields = []; let f = '', inq = false;
+    for (let i = 0; i <= line.length; i++) {
+      const c = line[i];
+      if (c === '"') { if (inq && line[i+1] === '"') { f += '"'; i++; } else { inq = !inq; } }
+      else if ((c === ',' || i === line.length) && !inq) { fields.push(f.trim()); f = ''; }
+      else { f += (c||''); }
+    }
+    return fields;
+  });
+}
+
+// Auto-detect common TCGPlayer/BinderPOS column names
+const FIELD_ALIASES = {
+  name:           ['name','card name','product name','title','card','item name','product'],
+  tcgId:          ['product id','tcgplayer id','tcg id','sku','product_id','productid','tcgplayerid','id'],
+  set:            ['set name','set','expansion','series','set_name'],
+  rarity:         ['rarity','rare','card rarity','rarity name','printing','foiling'],
+  condition:      ['condition','cond','grade','quality'],
+  qtyOnHand:      ['quantity','qty','qty on hand','on hand','quantity on hand','total qty','stock','add to quantity'],
+  qtyListed:      ['qty listed','listed qty','quantity listed','listed','qty for sale','quantity for sale'],
+  marketPrice:    ['market price','price','tcg market price','market','tcg price','low price','mid price','unit price'],
+  tcgListedPrice: ['my price','listed price','tcg listed price','sell price','selling price','store price','listed at','my listed price','tcgplayer listed price'],
+};
+
+function autoDetect(headers) {
+  const mapped = {};
+  const lc = headers.map(h => h.toLowerCase().trim());
+  Object.entries(FIELD_ALIASES).forEach(([field, aliases]) => {
+    const idx = lc.findIndex(h => aliases.includes(h));
+    if (idx !== -1) mapped[field] = headers[idx];
+  });
+  return mapped;
+}
+
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => processCSV(ev.target.result, file.name);
+  reader.readAsText(file);
+}
+
+function processCSV(text, filename) {
+  const parsed = parseCSV(text);
+  if (parsed.length < 2) { alert('CSV appears empty or invalid.'); return; }
+  csvHeaders = parsed[0];
+  csvRows    = parsed.slice(1).filter(r => r.some(c => c.trim()));
+  csvMapped  = autoDetect(csvHeaders);
+
+  // Build mapper UI
+  const FIELDS = [
+    { key:'name',           label:'Card Name',            required:true  },
+    { key:'tcgId',          label:'TCGPlayer ID',          required:false },
+    { key:'set',            label:'Set / Expansion',       required:false },
+    { key:'rarity',         label:'Rarity',                required:false },
+    { key:'condition',      label:'Condition',             required:false },
+    { key:'qtyOnHand',      label:'Qty on Hand',           required:false },
+    { key:'qtyListed',      label:'Qty Listed',            required:false },
+    { key:'marketPrice',    label:'Market Price ($)',       required:false },
+    { key:'tcgListedPrice', label:'My Listed Price ($)',    required:false },
+  ];
+
+  const grid = document.getElementById('mapper-grid');
+  grid.innerHTML = FIELDS.map(f => `
+    <div class="fg">
+      <label>${f.label}${f.required?' <span style="color:var(--accent3)">*</span>':''}</label>
+      <select id="map-${f.key}" onchange="csvMapped['${f.key}']=this.value||null">
+        <option value="">— skip —</option>
+        ${csvHeaders.map(h=>`<option value="${h}"${csvMapped[f.key]===h?' selected':''}>${h}</option>`).join('')}
+      </select>
+    </div>`).join('');
+
+  document.getElementById('mapper-summary').textContent = `${csvRows.length} data rows · ${csvHeaders.length} columns · from ${filename}`;
+  document.getElementById('mapper-box').classList.add('visible');
+  document.getElementById('preview-box').classList.remove('visible');
+  // Scroll to mapper
+  document.getElementById('mapper-box').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function backToMapper() {
+  document.getElementById('preview-box').classList.remove('visible');
+  document.getElementById('mapper-box').classList.add('visible');
+}
+
+// ══════════════════════════════════════════════════════════════
+// CSV IMPORT — PREVIEW
+// ══════════════════════════════════════════════════════════════
+function previewImport() {
+  const KEYS = ['name','tcgId','set','rarity','condition','qtyOnHand','qtyListed','marketPrice','tcgListedPrice'];
+  KEYS.forEach(k => { const el = document.getElementById('map-'+k); if(el) csvMapped[k] = el.value || null; });
+
+  if (!csvMapped.name) { alert('Card Name column is required.'); return; }
+
+  const getCol = (row, key) => {
+    if (!csvMapped[key]) return '';
+    const idx = csvHeaders.indexOf(csvMapped[key]);
+    return idx >= 0 ? (row[idx] || '').trim() : '';
+  };
+
+  // Build existing lookup by TCGPlayer ID then by name
+  const byTcgId = {};
+  const byName  = {};
+  singles.forEach(s => {
+    if (s.tcgId) byTcgId[s.tcgId.trim()] = s;
+    byName[s.name.toLowerCase().trim()] = s;
+  });
+
+  previewData = csvRows.map(row => {
+    const name  = getCol(row, 'name');
+    if (!name) return null;
+    const tcgId           = getCol(row, 'tcgId');
+    const set             = getCol(row, 'set');
+    const rarity          = getCol(row, 'rarity');
+    const rawCond         = getCol(row, 'condition');
+    const condition       = normalizeCondition(rawCond) || rawCond || 'NM';
+    const qtyOnHand       = parseFloat(getCol(row, 'qtyOnHand'))  || 0;
+    const qtyListed       = parseFloat(getCol(row, 'qtyListed'))  || 0;
+    const marketPrice     = parseFloat(getCol(row, 'marketPrice').replace(/[^0-9.]/g,'')) || 0;
+    const tcgListedPrice  = parseFloat(getCol(row, 'tcgListedPrice').replace(/[^0-9.]/g,'')) || 0;
+
+    const existing = (tcgId && byTcgId[tcgId]) || byName[name.toLowerCase().trim()];
+    const status = existing ? 'update' : 'new';
+    return { name, tcgId, set, rarity, condition, qtyOnHand, qtyListed, marketPrice, tcgListedPrice, status, existingId: existing?.id || null };
+  }).filter(Boolean);
+
+  const newCount    = previewData.filter(r=>r.status==='new').length;
+  const updateCount = previewData.filter(r=>r.status==='update').length;
+
+  document.getElementById('preview-title').textContent = `Import Preview — ${newCount} new · ${updateCount} updates · ${previewData.length} total`;
+  const tbody = document.getElementById('preview-body');
+  tbody.innerHTML = previewData.map(r => `
+    <tr>
+      <td><span class="tag-${r.status}">${r.status.toUpperCase()}</span></td>
+      <td style="font-weight:500">${r.name}</td>
+      <td style="color:var(--muted)">${r.tcgId||'—'}</td>
+      <td style="color:var(--muted)">${r.set||'—'}</td>
+      <td>${r.condition}</td>
+      <td>${r.qtyOnHand}</td>
+      <td style="color:var(--sale)">${r.marketPrice>0?fmt$(r.marketPrice):'—'}</td>
+    </tr>`).join('');
+
+  document.getElementById('mapper-box').classList.remove('visible');
+  document.getElementById('preview-box').classList.add('visible');
+  document.getElementById('preview-box').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function normalizeCondition(raw) {
+  if (!raw) return null;
+  const r = raw.toLowerCase().trim();
+  if (r.includes('near mint')||r==='nm'||r==='mint') return 'NM';
+  if (r.includes('lightly')||r==='lp') return 'LP';
+  if (r.includes('moderately')||r==='mp') return 'MP';
+  if (r.includes('heavily')||r==='hp') return 'HP';
+  if (r.includes('damage')||r==='dmg'||r==='d') return 'DMG';
+  return null;
+}
+
+// ══════════════════════════════════════════════════════════════
+// CSV IMPORT — CONFIRM
+// ══════════════════════════════════════════════════════════════
+function confirmImport() {
+  if (!previewData.length) return;
+  const now = todayIso();
+  let added = 0, updated = 0;
+  previewData.forEach(r => {
+    if (r.status === 'update' && r.existingId) {
+      singles = singles.map(s => {
+        if (s.id !== r.existingId) return s;
+        const updated = { ...s, name:r.name, tcgId:r.tcgId||s.tcgId, set:r.set||s.set,
+          rarity:r.rarity||s.rarity, condition:r.condition,
+          qtyOnHand:r.qtyOnHand, qtyListed:r.qtyListed,
+          marketPrice:r.marketPrice, tcgListedPrice:r.tcgListedPrice||s.tcgListedPrice,
+          lastUpdated:now };
+        // Record snapshot if price is set
+        if (r.marketPrice > 0) {
+          if (!updated.priceHistory) updated.priceHistory = [];
+          const existing = updated.priceHistory.findIndex(p => p.date === now);
+          const snap = { date:now, price:r.marketPrice, qty:r.qtyOnHand, totalValue:r.marketPrice*r.qtyOnHand };
+          if (existing >= 0) updated.priceHistory[existing] = snap;
+          else updated.priceHistory.push(snap);
+        }
+        return updated;
+      });
+      updated++;
+    } else {
+      const priceHistory = r.marketPrice > 0
+        ? [{ date:now, price:r.marketPrice, qty:r.qtyOnHand, totalValue:r.marketPrice*r.qtyOnHand }]
+        : [];
+      singles.push({ id: Date.now()+Math.random(), name:r.name, tcgId:r.tcgId, set:r.set,
+        rarity:r.rarity, condition:r.condition,
+        qtyOnHand:r.qtyOnHand, qtyListed:r.qtyListed,
+        marketPrice:r.marketPrice, tcgListedPrice:r.tcgListedPrice,
+        lastUpdated:now, priceHistory });
+      added++;
+    }
+  });
+
+  imports.push({ date: now, added, updated, total: previewData.length });
+  save();
+  resetImport();
+  renderSingles();
+  renderSinglesKPIs();
+  renderImportHistory();
+  renderSinglesCharts();
+  renderSnapUI();
+  updateHeader();
+  alert(`✓ Import complete: ${added} new SKUs added, ${updated} updated.`);
+}
+
+function resetImport() {
+  csvHeaders=[]; csvRows=[]; csvMapped={}; previewData=[];
+  document.getElementById('csv-file-input').value='';
+  document.getElementById('mapper-box').classList.remove('visible');
+  document.getElementById('preview-box').classList.remove('visible');
+}
+
+// ══════════════════════════════════════════════════════════════
+// DRAG & DROP
+// ══════════════════════════════════════════════════════════════
+const dz = document.getElementById('drop-zone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (!file || !file.name.endsWith('.csv')) { alert('Please drop a .csv file.'); return; }
+  const reader = new FileReader();
+  reader.onload = ev => processCSV(ev.target.result, file.name);
+  reader.readAsText(file);
+});
+
+// ══════════════════════════════════════════════════════════════
+// RENDER — SINGLES
+// ══════════════════════════════════════════════════════════════
+function setSinglesFilter(f, btn) {
+  singlesFilter = f;
+  document.querySelectorAll('#tab-singles .filter-row .fb').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); renderSingles();
+}
+function renderSingles() {
+  const search = (document.getElementById('sk-search').value||'').toLowerCase();
+  let filtered = [...singles];
+  if (singlesFilter==='in-stock')  filtered = filtered.filter(s=>s.qtyOnHand>0);
+  if (singlesFilter==='no-price')  filtered = filtered.filter(s=>!s.marketPrice||s.marketPrice===0);
+  if (search) filtered = filtered.filter(s=>(s.name+' '+(s.tcgId||'')+' '+(s.set||'')).toLowerCase().includes(search));
+  filtered.sort((a,b)=>a.name.localeCompare(b.name));
+
+  document.getElementById('singles-count-badge').textContent = `(${filtered.length} of ${singles.length})`;
+
+  const tbody = document.getElementById('singles-body');
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:28px">${singles.length===0?'No singles imported yet. Upload a CSV above.':'No results match your filter.'}</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = filtered.map(s => {
+    const mktVal = s.qtyOnHand * s.marketPrice;
+    const tcgUrl = s.tcgId ? `https://www.tcgplayer.com/product/${s.tcgId}` : '';
+    const condColor = {NM:'var(--sale)',LP:'var(--text)',MP:'var(--accent)',HP:'var(--accent3)',DMG:'var(--accent3)'}[s.condition]||'var(--text)';
+    const listedDelta = (s.tcgListedPrice>0 && s.marketPrice>0) ? s.tcgListedPrice - s.marketPrice : null;
+    const listedCell = s.tcgListedPrice>0
+      ? `<span style="color:var(--text)">${fmt$(s.tcgListedPrice)}</span>${listedDelta!=null?` <span style="font-size:9px;color:${listedDelta>=0?'var(--sale)':'var(--accent3)'}">(${listedDelta>=0?'+':''}${fmt$(listedDelta)})</span>`:''}`
+      : '<span style="color:var(--muted)">—</span>';
+    return `<tr>
+      <td style="font-weight:500;max-width:200px">${s.name}</td>
+      <td>${s.tcgId ? `<a class="tcg-link" href="${tcgUrl}" target="_blank" rel="noopener">${s.tcgId} ↗</a>` : '<span style="color:var(--muted)">—</span>'}</td>
+      <td style="color:var(--muted);white-space:nowrap">${s.set||'—'}</td>
+      <td style="color:var(--muted)">${s.rarity||'—'}</td>
+      <td style="color:${condColor}">${s.condition||'—'}</td>
+      <td><span class="qty-b ${s.qtyOnHand===0?'zero':''}">${s.qtyOnHand}</span></td>
+      <td style="color:var(--accent4)">${s.qtyListed||0}</td>
+      <td style="color:var(--sale)">${s.marketPrice>0?fmt$(s.marketPrice):'<span style="color:var(--muted)">—</span>'}</td>
+      <td>${listedCell}</td>
+      <td style="color:var(--sale)">${mktVal>0?fmt$(mktVal):'<span style="color:var(--muted)">—</span>'}</td>
+      <td><span class="${s.marketPrice>0?'mkt-badge':'mkt-badge mkt-stale'}">${s.lastUpdated?fmtDate(s.lastUpdated):'—'}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderSinglesKPIs() {
+  const total      = singles.length;
+  const totalQty   = singles.reduce((s,x)=>s+x.qtyOnHand,0);
+  const totalListed= singles.reduce((s,x)=>s+(x.qtyListed||0),0);
+  const mktVal     = singles.reduce((s,x)=>s+(x.qtyOnHand*x.marketPrice),0);
+  const lastImport = imports.length ? imports[imports.length-1] : null;
+  document.getElementById('sk-count').textContent    = total;
+  document.getElementById('sk-qty-sub').textContent  = `${totalQty} total qty on hand`;
+  document.getElementById('sk-listed').textContent   = totalListed;
+  document.getElementById('sk-listed-sub').textContent = `across ${singles.filter(s=>s.qtyListed>0).length} SKUs`;
+  document.getElementById('sk-mkt-val').textContent  = fmt$(mktVal);
+  document.getElementById('sk-import-date').textContent = lastImport ? fmtDate(lastImport.date) : '—';
+  document.getElementById('sk-import-sub').textContent  = lastImport ? `+${lastImport.added} new · ${lastImport.updated} updated` : 'no imports yet';
+}
+
+function renderImportHistory() {
+  const el = document.getElementById('import-history');
+  if (!imports.length) { el.style.display='none'; return; }
+  el.style.display='block';
+  const recent = [...imports].reverse().slice(0,5);
+  el.innerHTML = '<strong>Import History</strong> &nbsp;·&nbsp; ' +
+    recent.map(i=>`${fmtDate(i.date)}: <strong>${i.total}</strong> rows (${i.added} new, ${i.updated} updated)`).join(' &nbsp;·&nbsp; ');
+}
+
+function clearAllSingles() {
+  if (!singles.length) return;
+  if (!confirm(`Clear all ${singles.length} singles from the registry? This cannot be undone.`)) return;
+  singles = []; save(); renderSingles(); renderSinglesKPIs(); renderSinglesCharts(); updateHeader();
+}
+
+// ══════════════════════════════════════════════════════════════
+// SINGLES CHARTS
+// ══════════════════════════════════════════════════════════════
+let skChartModes = { expansion: 'qty', rarity: 'qty' };
+let skPriceSort  = 'delta';
+
+const RARITY_ORDER = ['mythic','mythic rare','rare','uncommon','common','land','basic land','special','token','promo'];
+const RARITY_COLORS = {
+  'mythic rare':'#f97316','mythic':'#f97316',
+  'rare':'#e8c547',
+  'uncommon':'#a78bfa',
+  'common':'#6b7280',
+  'land':'#4ecdc4','basic land':'#4ecdc4',
+  'special':'#3b82f6','token':'#34d399','promo':'#ff6b6b',
+};
+function rarityColor(r) {
+  if (!r) return 'var(--muted)';
+  return RARITY_COLORS[r.toLowerCase()] || 'var(--accent2)';
+}
+function raritySort(a, b) {
+  const ai = RARITY_ORDER.indexOf(a.toLowerCase());
+  const bi = RARITY_ORDER.indexOf(b.toLowerCase());
+  if (ai === -1 && bi === -1) return a.localeCompare(b);
+  if (ai === -1) return 1;
+  if (bi === -1) return -1;
+  return ai - bi;
+}
+
+function setSinglesChartMode(chart, mode, btn) {
+  skChartModes[chart] = mode;
+  btn.closest('.chart-box').querySelectorAll('.chart-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (chart === 'expansion') renderSkChartExpansion();
+  else renderSkChartRarity();
+}
+
+function setSkPriceSort(mode, btn) {
+  skPriceSort = mode;
+  btn.closest('.chart-tabs').querySelectorAll('.chart-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderSkPriceChart();
+}
+
+function renderSinglesCharts() {
+  renderSkChartExpansion();
+  renderSkChartRarity();
+  renderSkPriceChart();
+}
+
+// ── Chart 1: By Expansion ──
+function renderSkChartExpansion() {
+  const mode   = skChartModes.expansion;
+  const groups = {};
+  singles.forEach(s => {
+    const key = s.set || 'Unknown';
+    if (!groups[key]) groups[key] = { qty: 0, value: 0 };
+    groups[key].qty   += s.qtyOnHand;
+    groups[key].value += s.qtyOnHand * (s.marketPrice || 0);
+  });
+  renderSkHBar('sk-chart-expansion', groups, mode, 'var(--tcg)');
+}
+
+// ── Chart 2: By Rarity ──
+function renderSkChartRarity() {
+  const mode   = skChartModes.rarity;
+  const groups = {};
+  singles.forEach(s => {
+    const key = s.rarity || 'Unknown';
+    if (!groups[key]) groups[key] = { qty: 0, value: 0 };
+    groups[key].qty   += s.qtyOnHand;
+    groups[key].value += s.qtyOnHand * (s.marketPrice || 0);
+  });
+
+  const container = document.getElementById('sk-chart-rarity');
+  if (!Object.keys(groups).length) {
+    container.innerHTML = '<div class="empty-state" style="padding:18px;text-align:center">No singles data yet. Import a CSV to populate charts.</div>';
+    return;
+  }
+
+  // Sort rarities in canonical order
+  const entries = Object.entries(groups).sort((a, b) => {
+    if (mode === 'qty') {
+      const diff = b[1].qty - a[1].qty;
+      if (diff !== 0) return diff;
+    } else {
+      const diff = b[1].value - a[1].value;
+      if (diff !== 0) return diff;
+    }
+    return raritySort(a[0], b[0]);
+  });
+
+  const maxVal = Math.max(...entries.map(([, v]) => v[mode])) || 1;
+  container.innerHTML = entries.map(([label, data]) => {
+    const val  = data[mode];
+    const pct  = Math.max(2, Math.round((val / maxVal) * 100));
+    const color = rarityColor(label);
+    const display = mode === 'value' ? fmt$(val) : val.toLocaleString();
+    const sub     = mode === 'value' ? `${data.qty.toLocaleString()} cards` : `${fmt$(data.value)} value`;
+    return `<div class="hbar-row">
+      <div class="hbar-label" title="${label}">${label}</div>
+      <div class="hbar-track">
+        <div class="hbar-fill" style="width:${pct}%;background:${color};opacity:.85"></div>
+      </div>
+      <div>
+        <div class="hbar-val">${display}</div>
+        <div class="hbar-qty">${sub}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Shared horizontal bar for expansion chart (reuses sealed inventory helper style)
+function renderSkHBar(containerId, groups, mode, fallbackColor) {
+  const container = document.getElementById(containerId);
+  const entries = Object.entries(groups).sort((a, b) => b[1][mode] - a[1][mode]);
+
+  if (!entries.length) {
+    container.innerHTML = '<div class="empty-state" style="padding:18px;text-align:center">No singles data yet. Import a CSV to populate charts.</div>';
+    return;
+  }
+
+  const maxVal = Math.max(...entries.map(([, v]) => v[mode])) || 1;
+  const palette = ['var(--tcg)','var(--sale)','var(--accent)','var(--accent4)','var(--purchase)','var(--break)','var(--listing)'];
+  container.innerHTML = entries.map(([label, data], i) => {
+    const val     = data[mode];
+    const pct     = Math.max(2, Math.round((val / maxVal) * 100));
+    const display = mode === 'value' ? fmt$(val) : val.toLocaleString();
+    const sub     = mode === 'value' ? `${data.qty.toLocaleString()} cards` : `${fmt$(data.value)} value`;
+    return `<div class="hbar-row">
+      <div class="hbar-label" title="${label}">${label}</div>
+      <div class="hbar-track">
+        <div class="hbar-fill" style="width:${pct}%;background:${palette[i % palette.length]};opacity:.8"></div>
+      </div>
+      <div>
+        <div class="hbar-val">${display}</div>
+        <div class="hbar-qty">${sub}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Chart 3: Market vs Listed Price ──
+function renderSkPriceChart() {
+  const container  = document.getElementById('sk-chart-price');
+  const summaryEl  = document.getElementById('sk-price-summary');
+  const inStockOnly = document.getElementById('sk-price-in-stock-only')?.checked;
+  const search     = (document.getElementById('sk-price-search')?.value || '').toLowerCase().trim();
+
+  // Only cards that have BOTH a market price AND a listed price
+  let pool = singles.filter(s => s.marketPrice > 0 && s.tcgListedPrice > 0);
+  if (inStockOnly) pool = pool.filter(s => s.qtyOnHand > 0);
+  if (search)      pool = pool.filter(s => (s.name + ' ' + (s.set || '')).toLowerCase().includes(search));
+
+  if (!pool.length) {
+    container.innerHTML = `<div class="empty-state" style="padding:28px;text-align:center">
+      No cards have both a market price and a listed price yet.<br>
+      <span style="font-size:10px;margin-top:6px;display:block">Map the <strong style="color:var(--text)">My Listed Price</strong> column in your CSV import to enable this chart.</span>
+    </div>`;
+    summaryEl.innerHTML = '';
+    return;
+  }
+
+  // Compute delta per card
+  const rows = pool.map(s => {
+    const delta     = s.tcgListedPrice - s.marketPrice;
+    const deltaPct  = s.marketPrice > 0 ? (delta / s.marketPrice) * 100 : 0;
+    const mktValue  = s.qtyOnHand * s.marketPrice;
+    const listValue = s.qtyOnHand * s.tcgListedPrice;
+    return { ...s, delta, deltaPct, mktValue, listValue };
+  });
+
+  // Sort
+  if (skPriceSort === 'delta')      rows.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+  else if (skPriceSort === 'name')  rows.sort((a, b) => a.name.localeCompare(b.name));
+  else                               rows.sort((a, b) => b.mktValue - a.mktValue);
+
+  // Summary stats
+  const aboveMarket = rows.filter(r => r.delta > 0);
+  const belowMarket = rows.filter(r => r.delta < 0);
+  const atMarket    = rows.filter(r => r.delta === 0);
+  const totalMktVal  = rows.reduce((s, r) => s + r.mktValue, 0);
+  const totalListVal = rows.reduce((s, r) => s + r.listValue, 0);
+  const totalGap     = totalListVal - totalMktVal;
+
+  // Max absolute delta for bar scaling
+  const maxDelta = Math.max(...rows.map(r => Math.abs(r.delta)), 0.01);
+  const maxMkt   = Math.max(...rows.map(r => r.marketPrice), 0.01);
+
+  container.innerHTML = rows.map(r => {
+    const isAbove = r.delta > 0;
+    const isBelow = r.delta < 0;
+    const deltaColor = isAbove ? 'var(--sale)' : (isBelow ? 'var(--accent3)' : 'var(--muted)');
+    const barPct     = Math.round((Math.abs(r.delta) / maxDelta) * 100);
+    const mktBarPct  = Math.round((r.marketPrice / maxMkt) * 100);
+    const listBarPct = Math.round((r.tcgListedPrice / maxMkt) * 100);
+    const sign       = r.delta > 0 ? '+' : '';
+    const tcgUrl     = r.tcgId ? `https://www.tcgplayer.com/product/${r.tcgId}` : '';
+
+    return `<div style="display:grid;grid-template-columns:200px 1fr 130px;gap:10px;align-items:center;padding:8px 4px;border-bottom:1px solid var(--border)">
+
+      <!-- Name + meta -->
+      <div style="min-width:0">
+        <div style="font-size:11px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.name}">
+          ${tcgUrl ? `<a class="tcg-link" href="${tcgUrl}" target="_blank" rel="noopener">${r.name}</a>` : r.name}
+        </div>
+        <div style="font-size:9.5px;color:var(--muted);margin-top:2px;display:flex;gap:6px;flex-wrap:wrap">
+          ${r.set ? `<span>${r.set}</span>` : ''}
+          ${r.rarity ? `<span style="color:${rarityColor(r.rarity)}">${r.rarity}</span>` : ''}
+          ${r.qtyOnHand > 0 ? `<span style="color:var(--accent4)">×${r.qtyOnHand}</span>` : '<span style="color:var(--muted)">out of stock</span>'}
+        </div>
+      </div>
+
+      <!-- Dual bar: market (grey track) vs listed (colored fill) -->
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:9px;color:var(--muted);width:38px;text-align:right;flex-shrink:0">Market</span>
+          <div style="flex:1;height:8px;background:var(--border);border-radius:3px;overflow:hidden">
+            <div style="height:100%;width:${mktBarPct}%;background:var(--muted);border-radius:3px;opacity:.6"></div>
+          </div>
+          <span style="font-size:10px;color:var(--muted);width:52px">${fmt$(r.marketPrice)}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:9px;color:var(--muted);width:38px;text-align:right;flex-shrink:0">Listed</span>
+          <div style="flex:1;height:8px;background:var(--border);border-radius:3px;overflow:hidden">
+            <div style="height:100%;width:${listBarPct}%;background:${deltaColor};border-radius:3px"></div>
+          </div>
+          <span style="font-size:10px;color:${deltaColor};width:52px">${fmt$(r.tcgListedPrice)}</span>
+        </div>
+      </div>
+
+      <!-- Delta summary -->
+      <div style="text-align:right">
+        <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:${deltaColor}">${sign}${fmt$(r.delta)}</div>
+        <div style="font-size:9.5px;color:${deltaColor};opacity:.8">${sign}${r.deltaPct.toFixed(1)}%</div>
+        ${r.qtyOnHand > 0 ? `<div style="font-size:9px;color:var(--muted);margin-top:2px">${sign}${fmt$(r.delta * r.qtyOnHand)} total</div>` : ''}
+      </div>
+
+    </div>`;
+  }).join('');
+
+  // Summary bar
+  summaryEl.innerHTML = `
+    <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center">
+      <span><strong style="color:var(--text)">${rows.length}</strong> cards with price data</span>
+      <span style="color:var(--sale)"><strong>${aboveMarket.length}</strong> listed above market</span>
+      <span style="color:var(--accent3)"><strong>${belowMarket.length}</strong> listed below market</span>
+      <span style="color:var(--muted)"><strong>${atMarket.length}</strong> at market</span>
+      <span style="margin-left:auto">Total listed value: <strong style="color:${totalGap >= 0 ? 'var(--sale)' : 'var(--accent3)'}">${fmt$(totalListVal)}</strong>
+        <span style="color:${totalGap >= 0 ? 'var(--sale)' : 'var(--accent3)'};margin-left:4px">(${totalGap >= 0 ? '+' : ''}${fmt$(totalGap)} vs market)</span>
+      </span>
+    </div>`;
+}
+
+// ══════════════════════════════════════════════════════════════
+// HEADER
+// ══════════════════════════════════════════════════════════════
+function updateHeader() {
+  const sealedSkus = new Set(lots.filter(l=>l.qtyRemaining>0).map(l=>l.sku));
+  const singlesCount = singles.length;
+  const mktVal = singles.reduce((s,x)=>s+(x.qtyOnHand*x.marketPrice),0);
+  const gp = sales.reduce((s,s2)=>s+s2.revenue-s2.cogs,0);
+  document.getElementById('hdr-skus').textContent    = `${sealedSkus.size} Sealed SKU${sealedSkus.size!==1?'s':''}`;
+  document.getElementById('hdr-singles').textContent = `${singlesCount} Singles SKU${singlesCount!==1?'s':''}`;
+  document.getElementById('hdr-mktval').textContent  = `${fmt$(mktVal)} Singles Mkt`;
+  document.getElementById('hdr-profit').textContent  = `${fmt$(gp)} Sealed GP`;
+}
+
+// ══════════════════════════════════════════════════════════════
+// MODAL UTILS
+// ══════════════════════════════════════════════════════════════
+function closeModal(id){document.getElementById(id).classList.remove('open');pendingSale=null;pendingBreak=null;}
+
+// ══════════════════════════════════════════════════════════════
+// CHECKLIST
+// ══════════════════════════════════════════════════════════════
+function addTask(){
+  const title=document.getElementById('task-title').value.trim(),deadline=document.getElementById('task-deadline').value,priority=document.getElementById('task-priority').value;
+  if(!title) return;
+  tasks.push({id:Date.now(),title,deadline,priority,done:false}); save();
+  document.getElementById('task-title').value=''; document.getElementById('task-deadline').value='';
+  renderChecklist();
+}
+function toggleTask(id){tasks=tasks.map(t=>t.id===id?{...t,done:!t.done}:t);save();renderChecklist();}
+function deleteTask(id){tasks=tasks.filter(t=>t.id!==id);save();renderChecklist();}
+function setFilter(f,btn){taskFilter=f;document.querySelectorAll('#tab-dashboard .filter-row .fb').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderChecklist();}
+function getDS(d){if(!d) return null;const diff=Math.ceil((new Date(d)-new Date(todayIso()))/86400000);return diff<0?'overdue':diff<=3?'due-soon':'ok';}
+function renderChecklist(){
+  let filtered=[...tasks];
+  if(taskFilter==='open') filtered=tasks.filter(t=>!t.done);
+  if(taskFilter==='done') filtered=tasks.filter(t=>t.done);
+  if(taskFilter==='overdue') filtered=tasks.filter(t=>!t.done&&getDS(t.deadline)==='overdue');
+  const po={high:0,med:1,low:2},so={overdue:0,'due-soon':1,ok:2,null:3};
+  filtered.sort((a,b)=>{if(a.done!==b.done) return a.done?1:-1;return(so[getDS(a.deadline)]||3)-(so[getDS(b.deadline)]||3)||po[a.priority]-po[b.priority];});
+  const open=tasks.filter(t=>!t.done).length;
+  document.getElementById('checklist-count').textContent=`${open} open`;
+  const ov=tasks.filter(t=>!t.done&&getDS(t.deadline)==='overdue'),ds2=tasks.filter(t=>!t.done&&getDS(t.deadline)==='due-soon');
+  const banner=document.getElementById('rem-banner');const pieces=[];
+  if(ov.length) pieces.push(`${ov.length} overdue`);if(ds2.length) pieces.push(`${ds2.length} due within 3 days`);
+  if(pieces.length){document.getElementById('rem-text').textContent=pieces.join(' · ');banner.classList.add('visible');}
+  else banner.classList.remove('visible');
+  const container=document.getElementById('cl-items');
+  if(!filtered.length){container.innerHTML='<div class="empty-state">No tasks here.</div>';return;}
+  container.innerHTML=filtered.map(t=>{
+    const status=getDS(t.deadline);
+    const cls=['cl-item',t.done?'done':'',status&&!t.done?status:''].filter(Boolean).join(' ');
+    const dl=t.deadline?(()=>{
+      const diff=Math.ceil((new Date(t.deadline)-new Date(todayIso()))/86400000);
+      if(diff<0) return `<span class="dl overdue">Overdue ${Math.abs(diff)}d</span>`;
+      if(diff===0) return `<span class="dl due-soon">Due today</span>`;
+      if(diff<=3) return `<span class="dl due-soon">Due in ${diff}d</span>`;
+      return `<span class="dl ok">Due ${fmtDate(t.deadline)}</span>`;
+    })():'';
+    return `<div class="${cls}"><div class="chk ${t.done?'checked':''}" onclick="toggleTask(${t.id})">${t.done?'✓':''}</div><div class="ic"><div class="it ${t.done?'st':''}">${t.title}</div><div class="im">${dl}<span class="pt p${t.priority}">${t.priority}</span></div></div><button class="id-btn" onclick="deleteTask(${t.id})">✕</button></div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════════════
+// SINGLES SOLD — STATE & CSV
+// ══════════════════════════════════════════════════════════════
+// soldCards: { id, name, set, condition, qtySold }
+let soldCards   = JSON.parse(localStorage.getItem('tcg_sold')        || '[]');
+let soldImports = JSON.parse(localStorage.getItem('tcg_sold_imports')|| '[]');
+// revMonths: { id, monthKey (YYYY-MM), label, revenue, orders, notes }
+let revMonths   = JSON.parse(localStorage.getItem('tcg_rev_months')  || '[]');
+let revImports  = JSON.parse(localStorage.getItem('tcg_rev_imports') || '[]');
+
+const saveExt = () => {
+  localStorage.setItem('tcg_sold',         JSON.stringify(soldCards));
+  localStorage.setItem('tcg_sold_imports', JSON.stringify(soldImports));
+  localStorage.setItem('tcg_rev_months',   JSON.stringify(revMonths));
+  localStorage.setItem('tcg_rev_imports',  JSON.stringify(revImports));
+};
+
+// CSV state for sold tab
+let soldCsvHeaders=[], soldCsvRows=[], soldCsvMapped={}, soldPreviewData=[];
+// CSV state for rev tab
+let revCsvHeaders=[], revCsvRows=[], revCsvMapped={}, revPreviewData=[];
+
+const SOLD_ALIASES = {
+  name:      ['product name','card name','name','title','item','card'],
+  set:       ['set name','set','expansion','series'],
+  condition: ['condition','cond','grade','quality'],
+  qtySold:   ['quantity sold','qty sold','sold','qty','quantity','units sold','total sold','# sold'],
+};
+const REV_ALIASES = {
+  month:    ['month','date','period','month/year','sale month','order month','month-year'],
+  revenue:  ['revenue','total revenue','sales','total sales','gross sales','net sales','amount','total','income','gross revenue','sales total'],
+  orders:   ['orders','# orders','order count','number of orders','total orders','transactions'],
+  notes:    ['notes','note','comments','description','memo'],
+};
+
+// ── SOLD FILE SELECT ──
+function handleSoldFileSelect(e) {
+  const file = e.target.files[0]; if(!file) return;
+  const r = new FileReader(); r.onload = ev => processSoldCSV(ev.target.result, file.name); r.readAsText(file);
+}
+function processSoldCSV(text, filename) {
+  const parsed = parseCSV(text);
+  if(parsed.length < 2) { alert('CSV appears empty.'); return; }
+  soldCsvHeaders = parsed[0]; soldCsvRows = parsed.slice(1).filter(r=>r.some(c=>c.trim()));
+  soldCsvMapped = autoDetectWith(soldCsvHeaders, SOLD_ALIASES);
+  buildSoldMapper(filename);
+}
+function autoDetectWith(headers, aliases) {
+  const mapped={}, lc=headers.map(h=>h.toLowerCase().trim());
+  Object.entries(aliases).forEach(([field,alts])=>{ const i=lc.findIndex(h=>alts.includes(h)); if(i!==-1) mapped[field]=headers[i]; });
+  return mapped;
+}
+function buildSoldMapper(filename) {
+  const FIELDS=[{key:'name',label:'Card Name',req:true},{key:'set',label:'Set / Expansion',req:false},{key:'condition',label:'Condition',req:false},{key:'qtySold',label:'Quantity Sold',req:true}];
+  document.getElementById('sold-mapper-grid').innerHTML=FIELDS.map(f=>`<div class="fg"><label>${f.label}${f.req?' <span style="color:var(--accent3)">*</span>':''}</label><select id="smap-${f.key}" onchange="soldCsvMapped['${f.key}']=this.value||null"><option value="">— skip —</option>${soldCsvHeaders.map(h=>`<option value="${h}"${soldCsvMapped[f.key]===h?' selected':''}>${h}</option>`).join('')}</select></div>`).join('');
+  document.getElementById('sold-mapper-summary').textContent=`${soldCsvRows.length} data rows · ${soldCsvHeaders.length} columns · ${filename}`;
+  document.getElementById('sold-mapper-box').classList.add('visible');
+  document.getElementById('sold-preview-box').classList.remove('visible');
+  document.getElementById('sold-mapper-box').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function backToSoldMapper(){document.getElementById('sold-preview-box').classList.remove('visible');document.getElementById('sold-mapper-box').classList.add('visible');}
+
+// ── SOLD PREVIEW ──
+function previewSoldImport() {
+  ['name','set','condition','qtySold'].forEach(k=>{const el=document.getElementById('smap-'+k);if(el) soldCsvMapped[k]=el.value||null;});
+  if(!soldCsvMapped.name||!soldCsvMapped.qtySold){alert('Card Name and Quantity Sold columns are required.');return;}
+  const getCol=(row,key)=>{if(!soldCsvMapped[key]) return '';const i=soldCsvHeaders.indexOf(soldCsvMapped[key]);return i>=0?(row[i]||'').trim():'';}; 
+  // Build lookup by name+condition
+  const key=(name,cond)=>(name+'||'+(cond||'NM')).toLowerCase();
+  const existing={};
+  soldCards.forEach(s=>{ existing[key(s.name,s.condition)]=s; });
+
+  soldPreviewData = soldCsvRows.map(row=>{
+    const name=getCol(row,'name'); if(!name) return null;
+    const set=getCol(row,'set'), rawCond=getCol(row,'condition');
+    const condition=normalizeCondition(rawCond)||rawCond||'NM';
+    const qtySold=parseInt(getCol(row,'qtySold').replace(/[^0-9]/g,''))||0;
+    const ex=existing[key(name,condition)];
+    return {name,set,condition,qtySold,currentTotal:ex?ex.qtySold:0,existingId:ex?ex.id:null};
+  }).filter(Boolean);
+
+  document.getElementById('sold-preview-title').textContent=`Preview — ${soldPreviewData.length} rows, ${soldPreviewData.reduce((s,r)=>s+r.qtySold,0)} total units`;
+  document.getElementById('sold-preview-body').innerHTML=soldPreviewData.map(r=>`<tr>
+    <td style="font-weight:500;max-width:200px">${r.name}</td>
+    <td style="color:var(--muted)">${r.set||'—'}</td>
+    <td>${r.condition}</td>
+    <td style="color:var(--accent4);font-weight:700">+${r.qtySold}</td>
+    <td style="color:var(--muted)">${r.currentTotal}</td>
+    <td style="color:var(--sale);font-weight:700">${r.currentTotal+r.qtySold}</td>
+  </tr>`).join('');
+  document.getElementById('sold-mapper-box').classList.remove('visible');
+  document.getElementById('sold-preview-box').classList.add('visible');
+  document.getElementById('sold-preview-box').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ── SOLD CONFIRM ──
+function confirmSoldImport() {
+  if(!soldPreviewData.length) return;
+  const now=todayIso(); let added=0, updated=0, totalUnits=0;
+  soldPreviewData.forEach(r=>{
+    totalUnits+=r.qtySold;
+    if(r.existingId) {
+      soldCards=soldCards.map(s=>s.id===r.existingId?{...s,qtySold:s.qtySold+r.qtySold,set:r.set||s.set,lastUpdated:now}:s);
+      updated++;
+    } else {
+      soldCards.push({id:Date.now()+Math.random(),name:r.name,set:r.set,condition:r.condition,qtySold:r.qtySold,lastUpdated:now});
+      added++;
+    }
+  });
+  soldImports.push({date:now,rows:soldPreviewData.length,added,updated,units:totalUnits});
+  saveExt(); resetSoldImport(); renderSold(); renderSoldKPIs(); renderSoldImportHist();
+  alert(`✓ Import complete: ${added} new cards added, ${updated} updated. ${totalUnits} total units logged.`);
+}
+function resetSoldImport(){soldCsvHeaders=[];soldCsvRows=[];soldCsvMapped={};soldPreviewData=[];document.getElementById('sold-csv-input').value='';document.getElementById('sold-mapper-box').classList.remove('visible');document.getElementById('sold-preview-box').classList.remove('visible');}
+function clearSoldData(){if(!soldCards.length) return;if(!confirm(`Clear all ${soldCards.length} sold card records?`)) return;soldCards=[];saveExt();renderSold();renderSoldKPIs();}
+
+// ── SOLD RENDER ──
+function renderSold() {
+  const search=(document.getElementById('sold-search').value||'').toLowerCase();
+  let filtered=[...soldCards];
+  if(search) filtered=filtered.filter(s=>(s.name+' '+(s.set||'')).toLowerCase().includes(search));
+  filtered.sort((a,b)=>b.qtySold-a.qtySold);
+
+  document.getElementById('sold-all-badge').textContent=`(${filtered.length} of ${soldCards.length})`;
+
+  const total=soldCards.reduce((s,c)=>s+c.qtySold,0);
+  const maxQty=filtered.length?filtered[0].qtySold:1;
+
+  // Top sellers (always top 10 unsearched)
+  const top10=[...soldCards].sort((a,b)=>b.qtySold-a.qtySold).slice(0,10);
+  document.getElementById('sold-top-body').innerHTML=top10.length?top10.map((s,i)=>`<tr>
+    <td><span class="rank-num ${i<3?'rank-'+(i+1):'rank-n'}">${i+1}</span></td>
+    <td style="font-weight:500;max-width:160px">${s.name}</td>
+    <td style="color:var(--muted);font-size:10px">${s.set||'—'}</td>
+    <td><div class="sold-bar-wrap"><div class="sold-bar-bg"><div class="sold-bar-fill" style="width:${Math.round((s.qtySold/top10[0].qtySold)*100)}%"></div></div><span style="color:var(--accent4);font-weight:700;font-size:11px">${s.qtySold}</span></div></td>
+  </tr>`).join(''):'<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:22px">No data yet.</td></tr>';
+
+  // All cards
+  document.getElementById('sold-all-body').innerHTML=filtered.length?filtered.map(s=>`<tr>
+    <td style="font-weight:500;max-width:240px">${s.name}</td>
+    <td style="color:var(--muted)">${s.set||'—'}</td>
+    <td>${s.condition||'—'}</td>
+    <td style="color:var(--accent4);font-weight:700">${s.qtySold}</td>
+    <td><div class="sold-bar-wrap"><div class="sold-bar-bg"><div class="sold-bar-fill" style="width:${total>0?Math.round((s.qtySold/maxQty)*100):0}%"></div></div><span style="font-size:10px;color:var(--muted)">${total>0?((s.qtySold/total)*100).toFixed(1):0}%</span></div></td>
+  </tr>`).join(''):'<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:28px">No sold data imported yet.</td></tr>';
+}
+
+function renderSoldKPIs() {
+  const total=soldCards.reduce((s,c)=>s+c.qtySold,0);
+  const unique=soldCards.length;
+  const top=[...soldCards].sort((a,b)=>b.qtySold-a.qtySold)[0];
+  const lastImp=soldImports.length?soldImports[soldImports.length-1]:null;
+  document.getElementById('sold-total-units').textContent=total.toLocaleString();
+  document.getElementById('sold-total-sub').textContent=`across ${soldImports.length} import${soldImports.length!==1?'s':''}`;
+  document.getElementById('sold-unique').textContent=unique;
+  document.getElementById('sold-top-name').textContent=top?top.name:'—';
+  document.getElementById('sold-top-qty').textContent=top?`${top.qtySold} units sold`:'';
+  document.getElementById('sold-last-import').textContent=lastImp?fmtDate(lastImp.date):'—';
+  document.getElementById('sold-last-sub').textContent=lastImp?`+${lastImp.units} units, ${lastImp.rows} rows`:'no imports yet';
+}
+function renderSoldImportHist() {
+  const el=document.getElementById('sold-import-hist');
+  if(!soldImports.length){el.style.display='none';return;}
+  el.style.display='block';
+  const recent=[...soldImports].reverse().slice(0,5);
+  el.innerHTML='<strong>Import History</strong> &nbsp;·&nbsp; '+recent.map(i=>`${fmtDate(i.date)}: <strong>+${i.units}</strong> units (${i.rows} rows)`).join(' &nbsp;·&nbsp; ');
+}
+
+// ══════════════════════════════════════════════════════════════
+// REVENUE — CSV
+// ══════════════════════════════════════════════════════════════
+function handleRevFileSelect(e) {
+  const file=e.target.files[0]; if(!file) return;
+  const r=new FileReader(); r.onload=ev=>processRevCSV(ev.target.result,file.name); r.readAsText(file);
+}
+function processRevCSV(text, filename) {
+  const parsed=parseCSV(text);
+  if(parsed.length<2){alert('CSV appears empty.');return;}
+  revCsvHeaders=parsed[0]; revCsvRows=parsed.slice(1).filter(r=>r.some(c=>c.trim()));
+  revCsvMapped=autoDetectWith(revCsvHeaders,REV_ALIASES);
+  buildRevMapper(filename);
+}
+function buildRevMapper(filename){
+  const FIELDS=[{key:'month',label:'Month',req:true},{key:'revenue',label:'Revenue ($)',req:true},{key:'orders',label:'Order Count',req:false},{key:'notes',label:'Notes',req:false}];
+  document.getElementById('rev-mapper-grid').innerHTML=FIELDS.map(f=>`<div class="fg"><label>${f.label}${f.req?' <span style="color:var(--accent3)">*</span>':''}</label><select id="rmap-${f.key}" onchange="revCsvMapped['${f.key}']=this.value||null"><option value="">— skip —</option>${revCsvHeaders.map(h=>`<option value="${h}"${revCsvMapped[f.key]===h?' selected':''}>${h}</option>`).join('')}</select></div>`).join('');
+  document.getElementById('rev-mapper-summary').textContent=`${revCsvRows.length} data rows · ${revCsvHeaders.length} columns · ${filename}`;
+  document.getElementById('rev-mapper-box').classList.add('visible');
+  document.getElementById('rev-preview-box').classList.remove('visible');
+  document.getElementById('rev-mapper-box').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function backToRevMapper(){document.getElementById('rev-preview-box').classList.remove('visible');document.getElementById('rev-mapper-box').classList.add('visible');}
+
+// Parse month string → YYYY-MM key
+function parseMonthKey(raw) {
+  if(!raw) return null;
+  const s=raw.trim();
+  // YYYY-MM
+  if(/^\d{4}-\d{2}$/.test(s)) return s;
+  // MM/YYYY or MM-YYYY
+  const mdy=/^(\d{1,2})[\/\-](\d{4})$/.exec(s);
+  if(mdy) return `${mdy[2]}-${mdy[1].padStart(2,'0')}`;
+  // Month YYYY or Mon YYYY
+  const months={january:'01',february:'02',march:'03',april:'04',may:'05',june:'06',july:'07',august:'08',september:'09',october:'10',november:'11',december:'12',jan:'01',feb:'02',mar:'03',apr:'04',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};
+  const my=/^([a-zA-Z]+)\s+(\d{4})$/.exec(s);
+  if(my&&months[my[1].toLowerCase()]) return `${my[2]}-${months[my[1].toLowerCase()]}`;
+  // Try Date parse for anything else — pull year+month
+  const d=new Date(s); if(!isNaN(d)) return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  return null;
+}
+function fmtMonthKey(key){if(!key) return '—';const[y,m]=key.split('-');const names=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return `${names[parseInt(m)-1]} ${y}`;}
+
+// ── REV PREVIEW ──
+function previewRevImport(){
+  ['month','revenue','orders','notes'].forEach(k=>{const el=document.getElementById('rmap-'+k);if(el) revCsvMapped[k]=el.value||null;});
+  if(!revCsvMapped.month||!revCsvMapped.revenue){alert('Month and Revenue columns are required.');return;}
+  const getCol=(row,key)=>{if(!revCsvMapped[key]) return '';const i=revCsvHeaders.indexOf(revCsvMapped[key]);return i>=0?(row[i]||'').trim():'';}; 
+  const existing={};
+  revMonths.forEach(m=>{existing[m.monthKey]=m;});
+
+  revPreviewData=revCsvRows.map(row=>{
+    const rawMonth=getCol(row,'month'), monthKey=parseMonthKey(rawMonth);
+    if(!monthKey) return null;
+    const revenue=parseFloat(getCol(row,'revenue').replace(/[^0-9.]/g,''))||0;
+    const orders=parseInt(getCol(row,'orders').replace(/[^0-9]/g,''))||0;
+    const notes=getCol(row,'notes');
+    const status=existing[monthKey]?'update':'new';
+    return {monthKey,revenue,orders,notes,status};
+  }).filter(Boolean);
+
+  document.getElementById('rev-preview-title').textContent=`Preview — ${revPreviewData.length} months`;
+  document.getElementById('rev-preview-body').innerHTML=revPreviewData.map(r=>`<tr>
+    <td><span class="tag-${r.status}">${r.status.toUpperCase()}</span></td>
+    <td style="font-weight:500">${fmtMonthKey(r.monthKey)}</td>
+    <td style="color:var(--sale)">${fmt$(r.revenue)}</td>
+    <td style="color:var(--muted)">${r.orders||'—'}</td>
+    <td style="color:var(--muted)">${r.notes||'—'}</td>
+  </tr>`).join('');
+  document.getElementById('rev-mapper-box').classList.remove('visible');
+  document.getElementById('rev-preview-box').classList.add('visible');
+  document.getElementById('rev-preview-box').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ── REV CONFIRM ──
+function confirmRevImport(){
+  if(!revPreviewData.length) return;
+  const now=todayIso(); let added=0, updated=0;
+  revPreviewData.forEach(r=>{
+    const ex=revMonths.find(m=>m.monthKey===r.monthKey);
+    if(ex){
+      revMonths=revMonths.map(m=>m.monthKey===r.monthKey?{...m,revenue:r.revenue,orders:r.orders,notes:r.notes||m.notes}:m);
+      updated++;
+    } else {
+      revMonths.push({id:Date.now()+Math.random(),monthKey:r.monthKey,revenue:r.revenue,orders:r.orders,notes:r.notes});
+      added++;
+    }
+  });
+  revImports.push({date:now,added,updated,total:revPreviewData.length});
+  saveExt(); resetRevImport(); renderRevenue(); renderRevKPIs(); renderRevImportHist(); renderRevChart();
+  alert(`✓ Import complete: ${added} new months, ${updated} updated.`);
+}
+function resetRevImport(){revCsvHeaders=[];revCsvRows=[];revCsvMapped={};revPreviewData=[];document.getElementById('rev-csv-input').value='';document.getElementById('rev-mapper-box').classList.remove('visible');document.getElementById('rev-preview-box').classList.remove('visible');}
+function clearRevData(){if(!revMonths.length) return;if(!confirm('Clear all revenue data?')) return;revMonths=[];saveExt();renderRevenue();renderRevKPIs();renderRevChart();}
+function deleteRevMonth(id){if(!confirm('Delete this month?')) return;revMonths=revMonths.filter(m=>m.id!==id);saveExt();renderRevenue();renderRevKPIs();renderRevChart();}
+
+// ── REV RENDER ──
+function renderRevenue(){
+  const yearFilter=document.getElementById('rev-year-filter').value;
+  const filtered=revMonths.filter(m=>!yearFilter||m.monthKey.startsWith(yearFilter)).sort((a,b)=>b.monthKey.localeCompare(a.monthKey));
+
+  // Month cards
+  const grid=document.getElementById('rev-month-grid');
+  if(!filtered.length){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">No revenue data imported yet.</div>';document.getElementById('rev-ledger-body').innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:22px">No data.</td></tr>';document.getElementById('rev-ledger-count').textContent='';return;}
+  const maxRev=Math.max(...filtered.map(m=>m.revenue));
+  const best=filtered.reduce((b,m)=>m.revenue>b.revenue?m:b,filtered[0]);
+  grid.innerHTML=filtered.map(m=>`<div class="month-card ${m.monthKey===best.monthKey?'best':''}">
+    <div class="mc-month">${fmtMonthKey(m.monthKey)}</div>
+    <div class="mc-rev">${fmt$(m.revenue)}</div>
+    <div class="mc-sub">${m.orders?m.orders+' orders · '+fmt$(m.revenue/m.orders)+' avg':''}${m.notes?'<br><span style="color:var(--muted);font-size:9px">'+m.notes+'</span>':''}</div>
+  </div>`).join('');
+
+  // Ledger
+  document.getElementById('rev-ledger-count').textContent=`${filtered.length} month${filtered.length!==1?'s':''}`;
+  document.getElementById('rev-ledger-body').innerHTML=filtered.map(m=>`<tr>
+    <td style="font-weight:500">${fmtMonthKey(m.monthKey)}</td>
+    <td style="color:var(--sale)">${fmt$(m.revenue)}</td>
+    <td style="color:var(--muted)">${m.orders||'—'}</td>
+    <td style="color:var(--muted)">${m.orders&&m.orders>0?fmt$(m.revenue/m.orders):'—'}</td>
+    <td style="color:var(--muted);font-size:10px">${m.notes||'—'}</td>
+    <td><button class="btn btn-sm btn-danger" onclick="deleteRevMonth(${m.id})">✕</button></td>
+  </tr>`).join('');
+
+  // Populate year filter
+  const years=[...new Set(revMonths.map(m=>m.monthKey.split('-')[0]))].sort().reverse();
+  const sel=document.getElementById('rev-year-filter');
+  const prev=sel.value;
+  sel.innerHTML='<option value="">All Years</option>'+years.map(y=>`<option value="${y}"${y===prev?' selected':''}>${y}</option>`).join('');
+}
+
+function renderRevKPIs(){
+  const total=revMonths.reduce((s,m)=>s+m.revenue,0);
+  const best=revMonths.length?revMonths.reduce((b,m)=>m.revenue>b.revenue?m:b,revMonths[0]):null;
+  const avg=revMonths.length?total/revMonths.length:0;
+  const lastImp=revImports.length?revImports[revImports.length-1]:null;
+  document.getElementById('rev-total').textContent=fmt$(total);
+  document.getElementById('rev-total-sub').textContent=`across ${revMonths.length} month${revMonths.length!==1?'s':''}`;
+  document.getElementById('rev-best-month').textContent=best?fmtMonthKey(best.monthKey):'—';
+  document.getElementById('rev-best-val').textContent=best?fmt$(best.revenue):'';
+  document.getElementById('rev-avg').textContent=fmt$(avg);
+  document.getElementById('rev-avg-sub').textContent=`${revMonths.length} month${revMonths.length!==1?'s':''} tracked`;
+  document.getElementById('rev-last-import').textContent=lastImp?fmtDate(lastImp.date):'—';
+  document.getElementById('rev-last-sub').textContent=lastImp?`${lastImp.added} added · ${lastImp.updated} updated`:'no imports yet';
+}
+
+function renderRevChart(){
+  const wrap=document.getElementById('rev-chart-wrap');
+  if(!revMonths.length){wrap.style.display='none';return;}
+  wrap.style.display='block';
+  const sorted=[...revMonths].sort((a,b)=>a.monthKey.localeCompare(b.monthKey)).slice(-24);
+  const maxRev=Math.max(...sorted.map(m=>m.revenue))||1;
+  const bars=document.getElementById('rev-bars');
+  bars.innerHTML=sorted.map(m=>{
+    const h=Math.max(4,Math.round((m.revenue/maxRev)*110));
+    return `<div class="bar-col">
+      <div class="bar-fill" style="height:${h}px;background:var(--sale)">
+        <div class="bar-tip">${fmtMonthKey(m.monthKey)}: ${fmt$(m.revenue)}</div>
+      </div>
+      <div class="bar-label">${fmtMonthKey(m.monthKey).replace(' ','<br>')}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderRevImportHist(){
+  const el=document.getElementById('rev-import-hist');
+  if(!revImports.length){el.style.display='none';return;}
+  el.style.display='block';
+  const recent=[...revImports].reverse().slice(0,5);
+  el.innerHTML='<strong>Import History</strong> &nbsp;·&nbsp; '+recent.map(i=>`${fmtDate(i.date)}: <strong>${i.total}</strong> months (${i.added} new, ${i.updated} updated)`).join(' &nbsp;·&nbsp; ');
+}
+
+// ── DRAG & DROP for sold and rev drop zones ──
+['sold-drop-zone','rev-drop-zone'].forEach(dzId=>{
+  const dz2=document.getElementById(dzId);
+  if(!dz2) return;
+  dz2.addEventListener('dragover',e=>{e.preventDefault();dz2.classList.add('drag-over');});
+  dz2.addEventListener('dragleave',()=>dz2.classList.remove('drag-over'));
+  dz2.addEventListener('drop',e=>{
+    e.preventDefault();dz2.classList.remove('drag-over');
+    const file=e.dataTransfer.files[0];
+    if(!file||!file.name.endsWith('.csv')){alert('Please drop a .csv file.');return;}
+    const r=new FileReader();
+    if(dzId==='sold-drop-zone'){r.onload=ev=>processSoldCSV(ev.target.result,file.name);}
+    else{r.onload=ev=>processRevCSV(ev.target.result,file.name);}
+    r.readAsText(file);
+  });
+});
+
+// ══════════════════════════════════════════════════════════════
+// RELEASE TRACKER
+// ══════════════════════════════════════════════════════════════
+// releases: { id, name, type, date (ISO), notes }
+let releases  = JSON.parse(localStorage.getItem('tcg_releases') || '[]');
+let relFilter = 'all';
+
+const REL_TYPE_META = {
+  new:       { label:'New Release', cls:'rt-new',       dot:'var(--sale)'    },
+  reprint:   { label:'Reprint',     cls:'rt-reprint',   dot:'var(--accent4)' },
+  expansion: { label:'Expansion',   cls:'rt-expansion', dot:'var(--purchase)'},
+  promo:     { label:'Promo',       cls:'rt-promo',     dot:'var(--accent)'  },
+  bundle:    { label:'Bundle',      cls:'rt-bundle',    dot:'var(--break)'   },
+};
+
+function saveReleases() {
+  localStorage.setItem('tcg_releases', JSON.stringify(releases));
+}
+
+function addRelease() {
+  const name  = document.getElementById('rel-name').value.trim();
+  const type  = document.getElementById('rel-type').value;
+  const date  = document.getElementById('rel-date').value;
+  const notes = document.getElementById('rel-notes').value.trim();
+  if (!name || !date) { alert('Product name and release date are required.'); return; }
+  releases.push({ id: Date.now(), name, type, date, notes });
+  saveReleases();
+  document.getElementById('rel-name').value  = '';
+  document.getElementById('rel-notes').value = '';
+  renderReleases();
+}
+
+function deleteRelease(id) {
+  releases = releases.filter(r => r.id !== id);
+  saveReleases();
+  renderReleases();
+}
+
+function setRelFilter(f, btn) {
+  relFilter = f;
+  document.querySelectorAll('.rel-filters .fb').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderReleases();
+}
+
+function renderReleases() {
+  const today = todayIso();
+  let filtered = [...releases];
+
+  // Apply filter
+  if (relFilter === 'upcoming') filtered = filtered.filter(r => r.date >= today);
+  else if (relFilter === 'past') filtered = filtered.filter(r => r.date < today);
+  else if (['new','reprint','expansion','promo','bundle'].includes(relFilter))
+    filtered = filtered.filter(r => r.type === relFilter);
+
+  // Sort: upcoming ascending, past descending — upcoming first
+  const upcoming = filtered.filter(r => r.date >= today).sort((a,b) => a.date.localeCompare(b.date));
+  const past     = filtered.filter(r => r.date < today).sort((a,b) => b.date.localeCompare(a.date));
+  const sorted   = [...upcoming, ...past];
+
+  // Header count
+  const totalUpcoming = releases.filter(r => r.date >= today).length;
+  const within30 = releases.filter(r => r.date >= today && dayDiff(today, r.date) <= 30).length;
+  document.getElementById('rel-upcoming-count').textContent =
+    totalUpcoming > 0 ? `${totalUpcoming} upcoming · ${within30} within 30 days` : 'no upcoming releases';
+
+  const container = document.getElementById('rel-timeline');
+  if (!sorted.length) {
+    container.innerHTML = '<div class="empty-state">No releases match this filter.</div>';
+    return;
+  }
+
+  // Group by month
+  const groups = {};
+  const groupOrder = [];
+  sorted.forEach(r => {
+    const gKey = r.date.slice(0,7); // YYYY-MM
+    if (!groups[gKey]) { groups[gKey] = []; groupOrder.push(gKey); }
+    groups[gKey].push(r);
+  });
+
+  container.innerHTML = groupOrder.map(gKey => {
+    const [yr, mo] = gKey.split('-');
+    const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const monthLabel = `${monthNames[parseInt(mo)-1]} ${yr}`;
+    const isPastGroup = gKey < today.slice(0,7);
+    const isCurGroup  = gKey === today.slice(0,7);
+    const groupLabel  = isCurGroup ? 'This Month' : (isPastGroup ? monthLabel + ' — Past' : monthLabel);
+
+    const items = groups[gKey].map(r => {
+      const meta = REL_TYPE_META[r.type] || REL_TYPE_META.new;
+      const diff = dayDiff(today, r.date);
+      const isPast    = r.date < today;
+      const isToday   = r.date === today;
+
+      let countdown = '';
+      let countdownCls = 'rel-countdown past';
+      if (isToday) {
+        countdown = 'Releases Today!';
+        countdownCls = 'rel-countdown today';
+      } else if (!isPast) {
+        if (diff <= 7)       { countdown = `In ${diff} day${diff!==1?'s':''}`;  countdownCls = 'rel-countdown soon'; }
+        else if (diff <= 30) { countdown = `In ${diff} days`;                   countdownCls = 'rel-countdown soon'; }
+        else                 { countdown = `In ${diff} days`;                   countdownCls = 'rel-countdown'; }
+      } else {
+        const ago = Math.abs(diff);
+        countdown = ago === 1 ? 'Yesterday' : `${ago} days ago`;
+      }
+
+      const d = new Date(r.date + 'T12:00:00');
+      const dayNum   = d.getDate();
+      const monLabel = d.toLocaleString('default', {month:'short'}).toUpperCase();
+
+      return `<div class="rel-item ${isPast?'past':''} ${isToday?'today-rel':''}">
+        <div class="rel-date-col">
+          <div class="rel-day">${dayNum}</div>
+          <div class="rel-mon">${monLabel}</div>
+          <div class="rel-dot" style="background:${meta.dot}"></div>
+        </div>
+        <div class="rel-content">
+          <div class="rel-name">${r.name}</div>
+          <div class="rel-meta">
+            <span class="rel-type-badge ${meta.cls}">${meta.label}</span>
+            <span class="${countdownCls}">${countdown}</span>
+          </div>
+          ${r.notes ? `<div class="rel-notes-text">${r.notes}</div>` : ''}
+        </div>
+        <button class="id-btn" onclick="deleteRelease(${r.id})" title="Remove">&#x2715;</button>
+      </div>`;
+    }).join('');
+
+    return `<div class="rel-group-header">${groupLabel}<span class="rgh-badge">${groups[gKey].length}</span></div>${items}`;
+  }).join('');
+}
+
+function dayDiff(from, to) {
+  return Math.round((new Date(to+'T12:00:00') - new Date(from+'T12:00:00')) / 86400000);
+}
+
+// ══════════════════════════════════════════════════════════════
+// SKU META — game / expansion / product type / market price per SKU
+// skuMeta: { sku, game, expansion, productType, marketPrice, priceHistory:[{date,price,portfolioValue}] }
+// ══════════════════════════════════════════════════════════════
+let skuMeta = JSON.parse(localStorage.getItem('tcg_sku_meta') || '[]');
+
+function saveSkuMeta(){ localStorage.setItem('tcg_sku_meta', JSON.stringify(skuMeta)); }
+function getSkuMeta(sku){ return skuMeta.find(m=>m.sku===sku); }
+
+function upsertSkuMeta(sku, game, expansion, productType, marketPrice, date){
+  let m = skuMeta.find(x=>x.sku===sku);
+  if(!m){ m={sku,game:null,expansion:null,productType:null,marketPrice:0,priceHistory:[]}; skuMeta.push(m); }
+  if(game        !== null) m.game        = game;
+  if(expansion   !== null) m.expansion   = expansion;
+  if(productType !== null) m.productType = productType;
+  if(marketPrice !== null && marketPrice > 0){
+    m.marketPrice = marketPrice;
+    const oh = lots.filter(l=>l.sku===sku).reduce((s,l)=>s+l.qtyRemaining,0);
+    const snap = { date: date||todayIso(), price: marketPrice, portfolioValue: marketPrice*oh };
+    const idx = m.priceHistory.findIndex(p=>p.date===snap.date);
+    if(idx>=0) m.priceHistory[idx]=snap; else m.priceHistory.push(snap);
+    m.priceHistory.sort((a,b)=>a.date.localeCompare(b.date));
+  }
+  saveSkuMeta();
+}
+
+function saveSkuMetaForm(){
+  const sku  = document.getElementById('meta-sku-sel').value;
+  const game = document.getElementById('meta-game').value;
+  const exp  = document.getElementById('meta-expansion').value.trim();
+  const pt   = document.getElementById('meta-prodtype').value.trim();
+  const mp   = parseFloat(document.getElementById('meta-mktprice').value)||0;
+  if(!sku){ alert('Select a SKU.'); return; }
+  upsertSkuMeta(sku, game||null, exp||null, pt||null, mp>0?mp:null, todayIso());
+  document.getElementById('meta-mktprice').value='';
+  renderSkuMetaList(); renderInvCharts();
+}
+
+function populateMetaSkuSel(){
+  const allSkus=[...new Set(lots.map(l=>l.sku))].sort();
+  const sel=document.getElementById('meta-sku-sel');
+  const prev=sel.value;
+  sel.innerHTML='<option value="">— Select SKU —</option>'+allSkus.map(s=>`<option value="${s}"${s===prev?' selected':''}>${s}</option>`).join('');
+  sel.onchange=()=>{
+    const m=getSkuMeta(sel.value);
+    document.getElementById('meta-game').value      = m?.game||'';
+    document.getElementById('meta-expansion').value = m?.expansion||'';
+    document.getElementById('meta-prodtype').value  = m?.productType||'';
+    document.getElementById('meta-mktprice').value  = m?.marketPrice>0?m.marketPrice:'';
+  };
+}
+
+function deleteSkuMeta(sku){
+  skuMeta=skuMeta.filter(m=>m.sku!==sku);
+  saveSkuMeta(); renderSkuMetaList(); renderInvCharts();
+}
+
+// Map game name → badge CSS class
+function gameBadgeCls(game){
+  if(!game) return 'gb-other';
+  const g=game.toLowerCase();
+  if(g.includes('pokemon'))  return 'gb-pokemon';
+  if(g.includes('magic'))    return 'gb-magic';
+  if(g.includes('lorcana'))  return 'gb-lorcana';
+  if(g.includes('yu-gi-oh')||g.includes('yugioh')) return 'gb-yugioh';
+  if(g.includes('one piece')) return 'gb-onepiece';
+  return 'gb-other';
+}
+
+function renderSkuMetaList(){
+  populateMetaSkuSel();
+  // Rebuild game filter buttons from actual data
+  const allGames=[...new Set(skuMeta.filter(m=>m.game).map(m=>m.game))].sort();
+  const fRow=document.getElementById('inv-game-filter-row');
+  const curGame=fRow.dataset.active||'';
+  fRow.innerHTML=`<button class="fb ${curGame===''?'active':''}" onclick="setInvGameFilter('',this)">All Games</button>`
+    +allGames.map(g=>`<button class="fb ${curGame===g?'active':''} " onclick="setInvGameFilter('${g.replace(/'/g,"\\'")}',this)">${g}</button>`).join('');
+  fRow.dataset.active=curGame;
+
+  const allSkus=[...new Set(lots.map(l=>l.sku))].sort();
+  const container=document.getElementById('sku-meta-list');
+  if(!allSkus.length){ container.innerHTML='<div class="empty-state" style="padding:16px">No inventory SKUs yet.</div>'; return; }
+  container.innerHTML=`
+    <div style="display:grid;grid-template-columns:2fr .8fr .8fr 1fr 1fr auto;gap:8px;padding:4px 4px 6px;border-bottom:1px solid var(--border);margin-bottom:4px">
+      <span style="font-size:9.5px;color:var(--muted);letter-spacing:1px;text-transform:uppercase">SKU</span>
+      <span style="font-size:9.5px;color:var(--muted);letter-spacing:1px;text-transform:uppercase">Game</span>
+      <span style="font-size:9.5px;color:var(--muted);letter-spacing:1px;text-transform:uppercase">Expansion</span>
+      <span style="font-size:9.5px;color:var(--muted);letter-spacing:1px;text-transform:uppercase">Product Type</span>
+      <span style="font-size:9.5px;color:var(--muted);letter-spacing:1px;text-transform:uppercase">Mkt Price</span>
+      <span></span>
+    </div>`+
+    allSkus.map(sku=>{
+      const m=getSkuMeta(sku);
+      const oh=lots.filter(l=>l.sku===sku).reduce((s,l)=>s+l.qtyRemaining,0);
+      if(oh===0&&!m) return '';
+      const gameCls=gameBadgeCls(m?.game);
+      const gameHtml=m?.game?`<span class="game-badge ${gameCls}">${m.game}</span>`:`<span style="color:var(--muted);font-size:9.5px;font-style:italic">untagged</span>`;
+      return `<div class="sku-meta-item" style="grid-template-columns:2fr .8fr .8fr 1fr 1fr auto">
+        <div class="smi-sku" title="${sku}">${sku}</div>
+        <div>${gameHtml}</div>
+        <div><span class="smi-tag">${m?.expansion||'<span style="color:var(--muted);font-style:italic">—</span>'}</span></div>
+        <div><span class="smi-tag">${m?.productType||'<span style="color:var(--muted);font-style:italic">—</span>'}</span></div>
+        <div><span class="${m?.marketPrice>0?'price-pill':'price-pill no-price'}">${m?.marketPrice>0?fmt$(m.marketPrice):'—'}</span></div>
+        <div><button class="btn btn-sm btn-outline" onclick="quickEditMeta('${sku.replace(/'/g,"\\'")}')">Edit</button></div>
+      </div>`;
+    }).join('');
+}
+
+function quickEditMeta(sku){
+  const sel=document.getElementById('meta-sku-sel');
+  sel.value=sku; sel.dispatchEvent(new Event('change'));
+  sel.scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+// ══════════════════════════════════════════════════════════════
+// INVENTORY CHARTS
+// ══════════════════════════════════════════════════════════════
+let chartModes={ game:'qty', expansion:'qty', product:'qty' };
+let mvtWindow = 30;
+let invGameFilter = ''; // '' = all games
+
+function setInvGameFilter(game, btn){
+  invGameFilter=game;
+  const fRow=document.getElementById('inv-game-filter-row');
+  fRow.dataset.active=game;
+  fRow.querySelectorAll('.fb').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderInvCharts();
+}
+
+// Returns lots filtered by current game selection
+function filteredLots(){
+  if(!invGameFilter) return lots;
+  return lots.filter(l=>{ const m=getSkuMeta(l.sku); return m?.game===invGameFilter; });
+}
+
+function setChartMode(chart, mode, btn){
+  chartModes[chart]=mode;
+  const container = btn.closest('.chart-box');
+  container.querySelectorAll('.chart-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  if(chart==='game')      renderChartGame();
+  else if(chart==='expansion') renderChartExpansion();
+  else renderChartProduct();
+}
+
+function setMvtWindow(days, btn){
+  mvtWindow=days;
+  const box=btn.closest('.chart-box');
+  box.querySelectorAll('.chart-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderChartMVT();
+}
+
+function renderInvCharts(){
+  renderSkuMetaList();
+  renderChartGame();
+  renderChartExpansion();
+  renderChartProduct();
+  renderChartMVT();
+  renderChartProfit();
+}
+
+// ── CHART 1: By Game ──
+function renderChartGame(){
+  const mode=chartModes.game;
+  const groups={};
+  lots.forEach(l=>{
+    if(l.qtyRemaining===0) return;
+    const m=getSkuMeta(l.sku);
+    const key=m?.game||'Untagged';
+    if(!groups[key]) groups[key]={qty:0,value:0};
+    groups[key].qty   += l.qtyRemaining;
+    groups[key].value += l.qtyRemaining*l.unitCost;
+  });
+  // Use game-specific colors
+  const container=document.getElementById('chart-game');
+  const entries=Object.entries(groups).sort((a,b)=>b[1][mode]-a[1][mode]);
+  if(!entries.length){container.innerHTML='<div class="empty-state" style="padding:18px;text-align:center">No tagged inventory yet. Set the Game field when receiving items or via the SKU tagger above.</div>';return;}
+  const maxVal=Math.max(...entries.map(([,v])=>v[mode]))||1;
+  const gameColors={'Pokemon':'var(--accent)','Magic: The Gathering':'var(--accent4)','Lorcana':'var(--purchase)','Yu-Gi-Oh':'var(--break)','One Piece':'var(--accent3)','Untagged':'var(--muted)'};
+  container.innerHTML=entries.map(([label,data])=>{
+    const val=data[mode];
+    const pct=Math.max(2,Math.round((val/maxVal)*100));
+    const color=gameColors[label]||'var(--sale)';
+    const display=mode==='value'?fmt$(val):val;
+    const sub=mode==='value'?`${data.qty} unit${data.qty!==1?'s':''}`:`${fmt$(data.value)} value`;
+    return `<div class="hbar-row">
+      <div class="hbar-label" title="${label}">${label}</div>
+      <div class="hbar-track"><div class="hbar-fill" style="width:${pct}%;background:${color};opacity:.85"></div></div>
+      <div><div class="hbar-val">${display}</div><div class="hbar-qty">${sub}</div></div>
+    </div>`;
+  }).join('');
+}
+
+// ── CHART 2: By Expansion ──
+function renderChartExpansion(){
+  const mode=chartModes.expansion;
+  const groups={};
+  filteredLots().forEach(l=>{
+    if(l.qtyRemaining===0) return;
+    const m=getSkuMeta(l.sku);
+    const key=m?.expansion||'Untagged';
+    if(!groups[key]) groups[key]={qty:0,value:0};
+    groups[key].qty   += l.qtyRemaining;
+    groups[key].value += l.qtyRemaining*l.unitCost;
+  });
+  renderHBarChart('chart-expansion', groups, mode, 'var(--purchase)');
+}
+
+// ── CHART 3: By Product Type ──
+function renderChartProduct(){
+  const mode=chartModes.product;
+  const groups={};
+  filteredLots().forEach(l=>{
+    if(l.qtyRemaining===0) return;
+    const m=getSkuMeta(l.sku);
+    const key=m?.productType||'Untagged';
+    if(!groups[key]) groups[key]={qty:0,value:0};
+    groups[key].qty   += l.qtyRemaining;
+    groups[key].value += l.qtyRemaining*l.unitCost;
+  });
+  renderHBarChart('chart-product', groups, mode, 'var(--tcg)');
+}
+
+// Shared horizontal bar renderer
+function renderHBarChart(containerId, groups, mode, color){
+  const container=document.getElementById(containerId);
+  const entries=Object.entries(groups).sort((a,b)=>b[1][mode]-a[1][mode]);
+  if(!entries.length){
+    container.innerHTML='<div class="empty-state" style="padding:18px;text-align:center">No tagged inventory yet. Add expansion / product type when receiving or via the SKU tagger above.</div>';
+    return;
+  }
+  const maxVal=Math.max(...entries.map(([,v])=>v[mode]))||1;
+  const palette=['var(--purchase)','var(--tcg)','var(--sale)','var(--accent)','var(--accent4)','var(--break)','var(--listing)'];
+  container.innerHTML=entries.map(([label,data],i)=>{
+    const val=data[mode];
+    const pct=Math.max(2,Math.round((val/maxVal)*100));
+    const display=mode==='value'?fmt$(val):val;
+    const sub=mode==='value'?`${data.qty} unit${data.qty!==1?'s':''}`:`${fmt$(data.value)} value`;
+    return `<div class="hbar-row">
+      <div class="hbar-label" title="${label}">${label}</div>
+      <div class="hbar-track">
+        <div class="hbar-fill" style="width:${pct}%;background:${palette[i%palette.length]};opacity:.8"></div>
+      </div>
+      <div>
+        <div class="hbar-val">${display}</div>
+        <div class="hbar-qty">${sub}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── CHART 4: Market Value Over Time ──
+function renderChartMVT(){
+  const wrap=document.getElementById('chart-mvt-wrap');
+  const metaPool = invGameFilter ? skuMeta.filter(m=>m.game===invGameFilter) : skuMeta;
+  const allDates=new Set();
+  metaPool.forEach(m=>m.priceHistory.forEach(p=>allDates.add(p.date)));
+  if(allDates.size===0){
+    wrap.innerHTML='<div class="empty-state" style="padding:28px;text-align:center">No market price history yet. Enter market prices when receiving inventory or via the SKU tagger — each save records a snapshot.</div>';
+    return;
+  }
+  const cutoff = mvtWindow>0 ? (() => { const d=new Date(); d.setDate(d.getDate()-mvtWindow); return isoDate(d); })() : '0000-00-00';
+  const dates=[...allDates].filter(d=>d>=cutoff).sort();
+  if(dates.length===0){
+    wrap.innerHTML='<div class="empty-state" style="padding:20px;text-align:center">No snapshots in this time window.</div>';
+    return;
+  }
+  const points=dates.map(date=>{
+    let total=0;
+    metaPool.forEach(m=>{
+      const snaps=m.priceHistory.filter(p=>p.date<=date);
+      if(!snaps.length) return;
+      total+=snaps[snaps.length-1].portfolioValue;
+    });
+    return {date,value:total};
+  });
+  if(points.length<2){
+    wrap.innerHTML=`<div style="text-align:center;padding:20px"><div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:800;color:var(--sale)">${fmt$(points[0]?.value||0)}</div><div style="font-size:10px;color:var(--muted);margin-top:4px">${fmtDate(points[0]?.date)} — only one snapshot in range</div></div>`;
+    return;
+  }
+  const W=100, H=130, padL=52, padR=12, padT=10, padB=28;
+  const plotW=W*4-padL-padR, plotH=H-padT-padB;
+  const minV=Math.min(...points.map(p=>p.value))*0.95;
+  const maxV=Math.max(...points.map(p=>p.value))*1.05||1;
+  const xScale=(i)=>padL+(i/(points.length-1))*plotW;
+  const yScale=(v)=>padT+plotH-(((v-minV)/(maxV-minV))*plotH);
+  const linePoints=points.map((p,i)=>`${xScale(i).toFixed(1)},${yScale(p.value).toFixed(1)}`).join(' ');
+  const areaPoints=`${xScale(0).toFixed(1)},${(padT+plotH).toFixed(1)} `+linePoints+` ${xScale(points.length-1).toFixed(1)},${(padT+plotH).toFixed(1)}`;
+  const yLabels=Array.from({length:5},(_,i)=>{
+    const v=minV+(maxV-minV)*(i/4);
+    return `<text class="lc-axis" x="${(padL-4).toFixed(1)}" y="${yScale(v).toFixed(1)}" text-anchor="end" dominant-baseline="middle">${v>=1000?'$'+(v/1000).toFixed(1)+'k':fmt$(v)}</text>`;
+  }).join('');
+  const xIdxs=[...new Set([0,Math.floor(points.length*0.25),Math.floor(points.length*0.5),Math.floor(points.length*0.75),points.length-1])].filter(i=>i<points.length);
+  const xLabels=xIdxs.map(i=>{const d=new Date(points[i].date+'T12:00:00');return `<text class="lc-axis" x="${xScale(i).toFixed(1)}" y="${(padT+plotH+14).toFixed(1)}" text-anchor="middle">${d.toLocaleDateString('en-US',{month:'short',day:'numeric'})}</text>`;}).join('');
+  const latest=points[points.length-1],first=points[0];
+  const change=latest.value-first.value;
+  const changePct=first.value>0?((change/first.value)*100).toFixed(1):'0.0';
+  const changeColor=change>=0?'var(--sale)':'var(--accent3)';
+  const changeSign=change>=0?'+':'';
+  wrap.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+      <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:var(--sale)">${fmt$(latest.value)}</div>
+      <div style="font-size:10.5px;color:${changeColor}">${changeSign}${fmt$(change)} (${changeSign}${changePct}%) vs period start</div>
+    </div>
+    <svg viewBox="0 0 ${padL+plotW+padR} ${H}" class="linechart-svg" style="height:${H+20}px">
+      <polygon points="${areaPoints}" fill="var(--sale)" class="lc-area"/>
+      <polyline points="${linePoints}" class="lc-line" stroke="var(--sale)"/>
+      ${yLabels}${xLabels}
+      ${points.map((p,i)=>`<circle cx="${xScale(i).toFixed(1)}" cy="${yScale(p.value).toFixed(1)}" r="3" fill="var(--sale)" class="lc-dot"><title>${fmtDate(p.date)}: ${fmt$(p.value)}</title></circle>`).join('')}
+    </svg>`;
+}
+
+// ── CHART 5: Cost vs Market Profit View ──
+function renderChartProfit(){
+  const container=document.getElementById('chart-profit');
+  const fl=filteredLots();
+  const allSkus=[...new Set(fl.map(l=>l.sku))].sort();
+  const data=allSkus.map(sku=>{
+    const oh=fl.filter(l=>l.sku===sku).reduce((s,l)=>s+l.qtyRemaining,0);
+    if(oh===0) return null;
+    const costVal=fl.filter(l=>l.sku===sku).reduce((s,l)=>s+(l.qtyRemaining*l.unitCost),0);
+    const m=getSkuMeta(sku);
+    const mktVal=m?.marketPrice>0?m.marketPrice*oh:null;
+    return {sku,oh,costVal,mktVal,game:m?.game||null};
+  }).filter(Boolean);
+  if(!data.length){ container.innerHTML='<div class="empty-state" style="padding:18px;text-align:center">No in-stock inventory.</div>'; return; }
+  const maxVal=Math.max(...data.map(d=>Math.max(d.costVal,d.mktVal||d.costVal)))||1;
+  const gameColors={'Pokemon':'var(--accent)','Magic: The Gathering':'var(--accent4)','Lorcana':'var(--purchase)','Yu-Gi-Oh':'var(--break)','One Piece':'var(--accent3)'};
+  container.innerHTML=data.map(d=>{
+    const costPct=Math.max(2,Math.round((d.costVal/maxVal)*100));
+    const mktPct=d.mktVal!=null?Math.max(2,Math.round((d.mktVal/maxVal)*100)):null;
+    const gain=d.mktVal!=null?d.mktVal-d.costVal:null;
+    const gainColor=gain==null?'var(--muted)':gain>=0?'var(--sale)':'var(--accent3)';
+    const gainStr=gain==null?'no price':(gain>=0?'+':'')+fmt$(gain);
+    const mktFill=gain!=null?(gain>=0?'var(--sale)':'var(--accent3)'):'var(--muted)';
+    const dotColor=d.game?(gameColors[d.game]||'var(--muted)'):'transparent';
+    return `<div class="profit-row">
+      <div class="profit-label" title="${d.sku}"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${dotColor};margin-right:5px;flex-shrink:0;vertical-align:middle"></span>${d.sku}</div>
+      <div style="display:flex;flex-direction:column;gap:3px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="font-size:9px;color:var(--muted);width:44px">Cost</div>
+          <div class="profit-track" style="flex:1;height:10px"><div class="profit-cost" style="width:${costPct}%"></div></div>
+          <div style="font-size:9.5px;color:var(--muted);width:60px;text-align:right">${fmt$(d.costVal)}</div>
+        </div>
+        ${mktPct!=null?`<div style="display:flex;align-items:center;gap:6px">
+          <div style="font-size:9px;color:var(--muted);width:44px">Market</div>
+          <div class="profit-track" style="flex:1;height:10px"><div class="profit-mkt" style="width:${mktPct}%;background:${mktFill}"></div></div>
+          <div style="font-size:9.5px;color:${mktFill};width:60px;text-align:right">${fmt$(d.mktVal)}</div>
+        </div>`:'<div style="font-size:9px;color:var(--muted);padding-left:50px">No market price set</div>'}
+      </div>
+      <div style="font-size:10px;color:${gainColor};text-align:right;font-weight:600">${gainStr}</div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════════════
+// EXPORT / IMPORT — FULL DATA BACKUP
+// ══════════════════════════════════════════════════════════════
+function exportAllData() {
+  const payload = {
+    _version: 1,
+    _exported: new Date().toISOString(),
+    logs, tasks, lots, sales, breaks, singles, imports,
+    skuMeta, releases,
+    soldCards:   JSON.parse(localStorage.getItem('tcg_sold')          || '[]'),
+    soldImports: JSON.parse(localStorage.getItem('tcg_sold_imports')  || '[]'),
+    revMonths:   JSON.parse(localStorage.getItem('tcg_rev_months')    || '[]'),
+    revImports:  JSON.parse(localStorage.getItem('tcg_rev_imports')   || '[]'),
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  const ts   = new Date().toISOString().slice(0,10);
+  a.href     = url;
+  a.download = `tcghq-backup-${ts}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  document.getElementById('data-toolbar-info').textContent = `Last export: ${fmtDate(todayIso())}`;
+}
+
+function importAllData(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const d = JSON.parse(ev.target.result);
+      if (!d._version) { alert('This does not appear to be a valid TCGHQ backup file.'); return; }
+      if (!confirm(`Restore backup from ${fmtDate(d._exported?.slice(0,10)||todayIso())}?\n\nThis will REPLACE all current data. This cannot be undone.`)) return;
+
+      // Restore all arrays
+      if (d.logs)        { logs    = d.logs;    localStorage.setItem('tcg_logs',    JSON.stringify(logs));    }
+      if (d.tasks)       { tasks   = d.tasks;   localStorage.setItem('tcg_tasks',   JSON.stringify(tasks));   }
+      if (d.lots)        { lots    = d.lots;     localStorage.setItem('tcg_lots',    JSON.stringify(lots));    }
+      if (d.sales)       { sales   = d.sales;   localStorage.setItem('tcg_sales',   JSON.stringify(sales));   }
+      if (d.breaks)      { breaks  = d.breaks;  localStorage.setItem('tcg_breaks',  JSON.stringify(breaks));  }
+      if (d.singles)     { singles = d.singles; localStorage.setItem('tcg_singles', JSON.stringify(singles)); }
+      if (d.imports)     { imports = d.imports; localStorage.setItem('tcg_imports', JSON.stringify(imports)); }
+      if (d.skuMeta)     { skuMeta = d.skuMeta; localStorage.setItem('tcg_sku_meta',JSON.stringify(skuMeta));}
+      if (d.releases)    { releases= d.releases;localStorage.setItem('tcg_releases',JSON.stringify(releases));}
+      if (d.soldCards)   localStorage.setItem('tcg_sold',          JSON.stringify(d.soldCards));
+      if (d.soldImports) localStorage.setItem('tcg_sold_imports',  JSON.stringify(d.soldImports));
+      if (d.revMonths)   localStorage.setItem('tcg_rev_months',    JSON.stringify(d.revMonths));
+      if (d.revImports)  localStorage.setItem('tcg_rev_imports',   JSON.stringify(d.revImports));
+
+      // Re-initialize ext data
+      try {
+        if (d.soldCards)   soldCards   = d.soldCards;
+        if (d.soldImports) soldImports = d.soldImports;
+        if (d.revMonths)   revMonths   = d.revMonths;
+        if (d.revImports)  revImports  = d.revImports;
+      } catch(ex){}
+
+      // Re-render everything
+      updateHeader();
+      renderReleases();
+      renderChecklist();
+      document.getElementById('data-toolbar-info').textContent = `Restored from ${fmtDate(d._exported?.slice(0,10)||todayIso())} · ${singles.length} singles · ${lots.length} lots`;
+      alert('✓ Backup restored successfully. All data has been loaded.');
+    } catch(ex) {
+      alert('Failed to parse backup file. Make sure it is a valid TCGHQ JSON export.');
+    }
+    e.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+// ══════════════════════════════════════════════════════════════
+// PRICE SNAPSHOT LOG — SINGLES
+// ══════════════════════════════════════════════════════════════
+let snapWindow = 0; // 0 = all time
+
+function setSnapWindow(days, btn) {
+  snapWindow = days;
+  document.querySelectorAll('#tab-singles .chart-tab').forEach(b => {
+    if (['snap-win-btn-30','snap-win-btn-90','snap-win-btn-365','snap-win-btn-0'].includes(b.id))
+      b.classList.remove('active');
+  });
+  btn.classList.add('active');
+  renderSnapChart();
+}
+
+// Populate the card selector and set filter dropdowns
+function populateSnapCardSel() {
+  const setFilter = document.getElementById('snap-set-filter')?.value || '';
+
+  // Populate set filter options
+  const allSets = [...new Set(singles.filter(s=>s.priceHistory?.length).map(s=>s.set||'Unknown'))].sort();
+  const setEl = document.getElementById('snap-set-filter');
+  const setPrev = setEl?.value || '';
+  if (setEl) setEl.innerHTML = '<option value="">All Sets</option>' +
+    allSets.map(s=>`<option value="${s}"${s===setPrev?' selected':''}>${s}</option>`).join('');
+
+  // Filter singles to those with price history
+  let eligible = singles.filter(s => s.priceHistory?.length > 0);
+  if (setFilter) eligible = eligible.filter(s => (s.set||'Unknown') === setFilter);
+  eligible.sort((a,b) => a.name.localeCompare(b.name));
+
+  const sel = document.getElementById('snap-card-sel');
+  const prev = sel?.value || '';
+  if (sel) {
+    sel.innerHTML = '<option value="">— Select a card —</option>' +
+      eligible.map(s => `<option value="${s.id}"${s.id===prev?' selected':''}>${s.name}${s.set?' ('+s.set+')':''}</option>`).join('');
+  }
+
+  // Also populate snap-log-set
+  const logSetEl = document.getElementById('snap-log-set');
+  if (logSetEl) {
+    const lsPrev = logSetEl.value;
+    logSetEl.innerHTML = '<option value="">All Sets</option>' +
+      allSets.map(s=>`<option value="${s}"${s===lsPrev?' selected':''}>${s}</option>`).join('');
+  }
+}
+
+// Render the per-card SVG line chart
+function renderSnapChart() {
+  const box = document.getElementById('snap-chart-box');
+  const selId = document.getElementById('snap-card-sel')?.value;
+  if (!selId) {
+    box.innerHTML = '<div class="snap-empty">Select a card above to view its price history over time.</div>';
+    return;
+  }
+
+  const card = singles.find(s => s.id == selId);
+  if (!card || !card.priceHistory?.length) {
+    box.innerHTML = '<div class="snap-empty">No price history recorded for this card yet.</div>';
+    return;
+  }
+
+  // Apply time window filter
+  let snaps = [...card.priceHistory].sort((a,b) => a.date.localeCompare(b.date));
+  if (snapWindow > 0) {
+    const cutoff = (() => { const d = new Date(); d.setDate(d.getDate() - snapWindow); return isoDate(d); })();
+    snaps = snaps.filter(p => p.date >= cutoff);
+  }
+  if (!snaps.length) {
+    box.innerHTML = '<div class="snap-empty">No snapshots in this time window.</div>';
+    return;
+  }
+
+  const first = snaps[0], latest = snaps[snaps.length-1];
+  const change = latest.price - first.price;
+  const changePct = first.price > 0 ? ((change/first.price)*100).toFixed(1) : '0.0';
+  const changeColor = change > 0 ? 'var(--sale)' : change < 0 ? 'var(--accent3)' : 'var(--muted)';
+  const changeSign  = change > 0 ? '+' : '';
+
+  // Stats row
+  const minP = Math.min(...snaps.map(p=>p.price));
+  const maxP = Math.max(...snaps.map(p=>p.price));
+  const avgP = snaps.reduce((s,p)=>s+p.price,0)/snaps.length;
+
+  if (snaps.length === 1) {
+    box.innerHTML = `
+      <div style="font-size:11px;font-weight:500;margin-bottom:10px;color:var(--text)">${card.name} <span style="color:var(--muted);font-weight:400;font-size:10px">${card.set||''}</span></div>
+      <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:8px">
+        <div><div style="font-size:9px;color:var(--muted)">Current Price</div><div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:var(--sale)">${fmt$(latest.price)}</div></div>
+        <div><div style="font-size:9px;color:var(--muted)">Qty on Hand</div><div style="font-size:16px;font-weight:700;color:var(--text)">${latest.qty}</div></div>
+        <div><div style="font-size:9px;color:var(--muted)">Total Value</div><div style="font-size:16px;font-weight:700;color:var(--sale)">${fmt$(latest.totalValue)}</div></div>
+      </div>
+      <div style="font-size:10px;color:var(--muted)">Only one snapshot recorded. Import more CSVs over time to see a trend.</div>`;
+    return;
+  }
+
+  // SVG line chart
+  const W = 560, H = 120, padL = 56, padR = 16, padT = 12, padB = 28;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const minV = minP * 0.9, maxV = maxP * 1.08 || 1;
+  const xS = i => padL + (i / (snaps.length-1)) * plotW;
+  const yS = v => padT + plotH - ((v - minV) / (maxV - minV)) * plotH;
+  const pts = snaps.map((p,i) => `${xS(i).toFixed(1)},${yS(p.price).toFixed(1)}`).join(' ');
+  const area = `${xS(0).toFixed(1)},${(padT+plotH).toFixed(1)} ${pts} ${xS(snaps.length-1).toFixed(1)},${(padT+plotH).toFixed(1)}`;
+
+  // Y labels (4 ticks)
+  const yLabels = [0,1,2,3,4].map(i => {
+    const v = minV + (maxV-minV)*(i/4);
+    return `<text class="lc-axis" x="${padL-5}" y="${yS(v).toFixed(1)}" text-anchor="end" dominant-baseline="middle">${fmt$(v)}</text>`;
+  }).join('');
+
+  // X labels (sparse)
+  const xIdxs = [...new Set([0, Math.floor(snaps.length*0.33), Math.floor(snaps.length*0.66), snaps.length-1])].filter(i=>i<snaps.length);
+  const xLabels = xIdxs.map(i => {
+    const d = new Date(snaps[i].date+'T12:00:00');
+    return `<text class="lc-axis" x="${xS(i).toFixed(1)}" y="${padT+plotH+14}" text-anchor="middle">${d.toLocaleDateString('en-US',{month:'short',day:'numeric'})}</text>`;
+  }).join('');
+
+  // Qty area (secondary, faint)
+  const maxQ = Math.max(...snaps.map(p=>p.qty)) || 1;
+  const yQ = v => padT + plotH - (v/maxQ)*plotH;
+  const qPts = snaps.map((p,i) => `${xS(i).toFixed(1)},${yQ(p.qty).toFixed(1)}`).join(' ');
+  const qArea = `${xS(0).toFixed(1)},${(padT+plotH).toFixed(1)} ${qPts} ${xS(snaps.length-1).toFixed(1)},${(padT+plotH).toFixed(1)}`;
+
+  box.innerHTML = `
+    <div style="font-size:11px;font-weight:500;margin-bottom:10px;color:var(--text)">${card.name} <span style="color:var(--muted);font-weight:400;font-size:10px">${card.set||''} · ${card.rarity||''}</span></div>
+    <div style="display:flex;gap:22px;flex-wrap:wrap;margin-bottom:10px;align-items:flex-start">
+      <div><div style="font-size:9px;color:var(--muted);margin-bottom:2px">Current Price</div><div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:var(--sale)">${fmt$(latest.price)}</div></div>
+      <div><div style="font-size:9px;color:var(--muted);margin-bottom:2px">Change</div><div style="font-size:16px;font-weight:700;color:${changeColor}">${changeSign}${fmt$(change)} (${changeSign}${changePct}%)</div></div>
+      <div><div style="font-size:9px;color:var(--muted);margin-bottom:2px">Low / High</div><div style="font-size:13px;color:var(--text)">${fmt$(minP)} / ${fmt$(maxP)}</div></div>
+      <div><div style="font-size:9px;color:var(--muted);margin-bottom:2px">Avg Price</div><div style="font-size:13px;color:var(--text)">${fmt$(avgP)}</div></div>
+      <div><div style="font-size:9px;color:var(--muted);margin-bottom:2px">Snapshots</div><div style="font-size:13px;color:var(--text)">${snaps.length}</div></div>
+      <div><div style="font-size:9px;color:var(--muted);margin-bottom:2px">Current Qty</div><div style="font-size:13px;color:var(--text)">${latest.qty}</div></div>
+      <div><div style="font-size:9px;color:var(--muted);margin-bottom:2px">Total Value</div><div style="font-size:13px;color:var(--sale)">${fmt$(latest.totalValue)}</div></div>
+    </div>
+    <div class="snap-legend">
+      <div class="snap-legend-item"><div class="snap-legend-dot" style="background:var(--sale)"></div>Market Price</div>
+      <div class="snap-legend-item"><div class="snap-legend-dot" style="background:var(--accent4);opacity:.5"></div>Qty on Hand</div>
+    </div>
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H+8}px;overflow:visible">
+      <polygon points="${qArea}" fill="var(--accent4)" opacity=".08"/>
+      <polyline points="${qPts}" fill="none" stroke="var(--accent4)" stroke-width="1.5" stroke-dasharray="4 3" opacity=".35"/>
+      <polygon points="${area}" fill="var(--sale)" opacity=".12"/>
+      <polyline points="${pts}" fill="none" stroke="var(--sale)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      ${yLabels}${xLabels}
+      ${snaps.map((p,i)=>`<circle cx="${xS(i).toFixed(1)}" cy="${yS(p.price).toFixed(1)}" r="3.5" fill="var(--sale)"><title>${fmtDate(p.date)}: ${fmt$(p.price)} · Qty ${p.qty}</title></circle>`).join('')}
+    </svg>
+    <!-- Snapshot table for this card -->
+    <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:10px">
+      <div style="font-size:9.5px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">Snapshot detail</div>
+      ${[...snaps].reverse().map((p,i,arr) => {
+        const prev = arr[i+1];
+        const delta = prev ? p.price - prev.price : 0;
+        const cls = delta > 0 ? 'snap-delta-pos' : delta < 0 ? 'snap-delta-neg' : 'snap-delta-neu';
+        const sign = delta > 0 ? '+' : '';
+        return `<div class="snap-hist-row">
+          <span style="color:var(--muted)">${fmtDate(p.date)}</span>
+          <span style="color:var(--sale);font-weight:600">${fmt$(p.price)}</span>
+          <span class="${cls}" style="font-size:10px">${prev?sign+fmt$(delta):'—'}</span>
+          <span style="color:var(--muted)">${p.qty} on hand</span>
+          <span style="color:var(--sale)">${fmt$(p.totalValue)}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+// Render the full snapshot log table (all cards, all dates)
+function renderSnapLog() {
+  const search   = (document.getElementById('snap-log-search')?.value || '').toLowerCase();
+  const setFilter= document.getElementById('snap-log-set')?.value || '';
+  const body     = document.getElementById('snap-log-body');
+  const countEl  = document.getElementById('snap-log-count');
+
+  // Flatten all snapshots from all singles
+  let rows = [];
+  singles.forEach(s => {
+    if (!s.priceHistory?.length) return;
+    s.priceHistory.forEach((p, idx) => {
+      const prev = s.priceHistory[idx-1];
+      const delta = prev ? p.price - prev.price : null;
+      rows.push({ date:p.date, name:s.name, set:s.set||'', rarity:s.rarity||'', price:p.price, qty:p.qty, total:p.totalValue, delta });
+    });
+  });
+
+  // Filter
+  if (search)    rows = rows.filter(r => (r.name+' '+r.set).toLowerCase().includes(search));
+  if (setFilter) rows = rows.filter(r => r.set === setFilter);
+
+  // Sort newest first
+  rows.sort((a,b) => b.date.localeCompare(a.date) || a.name.localeCompare(b.name));
+
+  countEl.textContent = `${rows.length} snapshot${rows.length!==1?'s':''}`;
+
+  if (!rows.length) {
+    body.innerHTML = '<div class="snap-empty">No snapshots match this filter.</div>';
+    return;
+  }
+
+  body.innerHTML = rows.map(r => {
+    const cls  = r.delta == null ? 'snap-delta-neu' : r.delta > 0 ? 'snap-delta-pos' : r.delta < 0 ? 'snap-delta-neg' : 'snap-delta-neu';
+    const sign = r.delta != null && r.delta > 0 ? '+' : '';
+    const deltaStr = r.delta == null ? '—' : `${sign}${fmt$(r.delta)}`;
+    return `<div class="snap-hist-row">
+      <span style="color:var(--muted)">${fmtDate(r.date)}</span>
+      <span style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.name}">${r.name}${r.set?' <span style="color:var(--muted);font-size:9px">'+r.set+'</span>':''}</span>
+      <span style="color:var(--sale)">${fmt$(r.price)}</span>
+      <span style="color:var(--muted)">${r.qty}</span>
+      <span style="color:var(--sale)">${fmt$(r.total)} <span class="${cls}" style="font-size:9.5px">${deltaStr}</span></span>
+    </div>`;
+  }).join('');
+}
+
+// Master render for all snapshot UI
+function renderSnapUI() {
+  populateSnapCardSel();
+  renderSnapChart();
+  renderSnapLog();
+}
+
+// ══════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════
+document.getElementById('current-date').textContent=today().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+document.getElementById('buy-date').value=todayIso();
+document.getElementById('sell-date').value=todayIso();
+document.getElementById('break-date').value=todayIso();
+document.getElementById('rel-date').value=todayIso();
+
+document.getElementById('sell-sku').addEventListener('change',updateSellPreview);
+document.getElementById('break-sku').addEventListener('change',updateBreakPreview);
+document.getElementById('sale-modal').addEventListener('click',e=>{if(e.target===e.currentTarget) closeModal('sale-modal');});
+document.getElementById('break-modal').addEventListener('click',e=>{if(e.target===e.currentTarget) closeModal('break-modal');});
+document.getElementById('task-title').addEventListener('keydown',e=>{if(e.key==='Enter') addTask();});
+document.getElementById('rel-name').addEventListener('keydown',e=>{if(e.key==='Enter') addRelease();});
+
+renderReleases();
+renderChecklist();
+updateHeader();
+setInterval(renderChecklist,60000);
+</script>
+</body>
+</html>
