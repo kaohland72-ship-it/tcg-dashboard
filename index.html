@@ -140,10 +140,15 @@ tr:hover td{background:rgba(255,255,255,.018)}
 @keyframes sli{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
 .cl-item.overdue{border-color:var(--accent3);background:rgba(255,107,107,.04)}
 .cl-item.due-soon{border-color:var(--accent);background:rgba(232,197,71,.04)}
-.cl-item.done{opacity:.4}
-.chk{width:16px;height:16px;border-radius:4px;border:2px solid var(--border);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s;margin-top:1px;font-size:9px}
-.chk:hover{border-color:var(--accent)}
-.chk.checked{background:var(--accent);border-color:var(--accent);color:#000}
+.cl-item.done{opacity:.5;background:rgba(52,211,153,.03);border-color:rgba(52,211,153,.2)}
+.chk{width:18px;height:18px;border-radius:5px;border:2px solid var(--border);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s;margin-top:1px;font-size:10px}
+.chk:hover{border-color:var(--sale);background:rgba(52,211,153,.1)}
+.chk.checked{background:var(--sale);border-color:var(--sale);color:#0a0a0a;font-size:11px;font-weight:700}
+.btn-complete{background:rgba(52,211,153,.12);color:var(--sale);border:1px solid rgba(52,211,153,.3);border-radius:5px;padding:3px 8px;font-size:10px;cursor:pointer;font-family:'DM Mono',monospace;transition:all .15s;white-space:nowrap;flex-shrink:0}
+.btn-complete:hover{background:rgba(52,211,153,.25)}
+.btn-complete.undo{background:rgba(107,114,128,.1);color:var(--muted);border-color:var(--border)}
+.btn-complete.undo:hover{background:rgba(107,114,128,.2)}
+.cl-completed-at{font-size:9px;color:var(--sale);opacity:.7;margin-top:2px}
 .ic{flex:1;min-width:0}
 .it{font-size:11.5px;line-height:1.3;margin-bottom:3px}
 .it.st{text-decoration:line-through;color:var(--muted)}
@@ -1974,23 +1979,27 @@ function closeModal(id){document.getElementById(id).classList.remove('open');pen
 function addTask(){
   const title=document.getElementById('task-title').value.trim(),deadline=document.getElementById('task-deadline').value,priority=document.getElementById('task-priority').value;
   if(!title) return;
-  tasks.push({id:Date.now(),title,deadline,priority,done:false}); save();
+  tasks.push({id:Date.now(),title,deadline,priority,done:false,completedAt:null}); save();
   document.getElementById('task-title').value=''; document.getElementById('task-deadline').value='';
   renderChecklist();
 }
-function toggleTask(id){tasks=tasks.map(t=>t.id===id?{...t,done:!t.done}:t);save();renderChecklist();}
+function toggleTask(id){
+  tasks=tasks.map(t=>t.id===id?{...t,done:!t.done,completedAt:!t.done?todayIso():null}:t);
+  save(); renderChecklist();
+}
 function deleteTask(id){tasks=tasks.filter(t=>t.id!==id);save();renderChecklist();}
 function setFilter(f,btn){taskFilter=f;document.querySelectorAll('#tab-dashboard .filter-row .fb').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderChecklist();}
 function getDS(d){if(!d) return null;const diff=Math.ceil((new Date(d)-new Date(todayIso()))/86400000);return diff<0?'overdue':diff<=3?'due-soon':'ok';}
 function renderChecklist(){
   let filtered=[...tasks];
-  if(taskFilter==='open') filtered=tasks.filter(t=>!t.done);
-  if(taskFilter==='done') filtered=tasks.filter(t=>t.done);
+  if(taskFilter==='open')    filtered=tasks.filter(t=>!t.done);
+  if(taskFilter==='done')    filtered=tasks.filter(t=>t.done);
   if(taskFilter==='overdue') filtered=tasks.filter(t=>!t.done&&getDS(t.deadline)==='overdue');
   const po={high:0,med:1,low:2},so={overdue:0,'due-soon':1,ok:2,null:3};
   filtered.sort((a,b)=>{if(a.done!==b.done) return a.done?1:-1;return(so[getDS(a.deadline)]||3)-(so[getDS(b.deadline)]||3)||po[a.priority]-po[b.priority];});
   const open=tasks.filter(t=>!t.done).length;
-  document.getElementById('checklist-count').textContent=`${open} open`;
+  const done=tasks.filter(t=>t.done).length;
+  document.getElementById('checklist-count').textContent=`${open} open · ${done} done`;
   const ov=tasks.filter(t=>!t.done&&getDS(t.deadline)==='overdue'),ds2=tasks.filter(t=>!t.done&&getDS(t.deadline)==='due-soon');
   const banner=document.getElementById('rem-banner');const pieces=[];
   if(ov.length) pieces.push(`${ov.length} overdue`);if(ds2.length) pieces.push(`${ds2.length} due within 3 days`);
@@ -2003,12 +2012,29 @@ function renderChecklist(){
     const cls=['cl-item',t.done?'done':'',status&&!t.done?status:''].filter(Boolean).join(' ');
     const dl=t.deadline?(()=>{
       const diff=Math.ceil((new Date(t.deadline)-new Date(todayIso()))/86400000);
-      if(diff<0) return `<span class="dl overdue">Overdue ${Math.abs(diff)}d</span>`;
-      if(diff===0) return `<span class="dl due-soon">Due today</span>`;
+      if(t.done)  return `<span class="dl ok">Due ${fmtDate(t.deadline)}</span>`;
+      if(diff<0)  return `<span class="dl overdue">Overdue ${Math.abs(diff)}d</span>`;
+      if(diff===0)return `<span class="dl due-soon">Due today</span>`;
       if(diff<=3) return `<span class="dl due-soon">Due in ${diff}d</span>`;
       return `<span class="dl ok">Due ${fmtDate(t.deadline)}</span>`;
     })():'';
-    return `<div class="${cls}"><div class="chk ${t.done?'checked':''}" onclick="toggleTask(${t.id})">${t.done?'✓':''}</div><div class="ic"><div class="it ${t.done?'st':''}">${t.title}</div><div class="im">${dl}<span class="pt p${t.priority}">${t.priority}</span></div></div><button class="id-btn" onclick="deleteTask(${t.id})">✕</button></div>`;
+    const completedLine=t.done&&t.completedAt
+      ?`<div class="cl-completed-at">✓ Completed ${fmtDate(t.completedAt)}</div>`:'';
+    const completeBtn=t.done
+      ?`<button class="btn-complete undo" onclick="toggleTask(${t.id})" title="Reopen task">↩ Reopen</button>`
+      :`<button class="btn-complete" onclick="toggleTask(${t.id})" title="Mark complete">✓ Done</button>`;
+    return `<div class="${cls}">
+      <div class="chk ${t.done?'checked':''}" onclick="toggleTask(${t.id})">${t.done?'✓':''}</div>
+      <div class="ic">
+        <div class="it ${t.done?'st':''}">${t.title}</div>
+        <div class="im">${dl}<span class="pt p${t.priority}">${t.priority}</span></div>
+        ${completedLine}
+      </div>
+      <div style="display:flex;gap:5px;align-items:flex-start;flex-shrink:0">
+        ${completeBtn}
+        <button class="id-btn" onclick="deleteTask(${t.id})" title="Delete task">✕</button>
+      </div>
+    </div>`;
   }).join('');
 }
 
