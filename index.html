@@ -1409,7 +1409,7 @@ const FIELD_ALIASES = {
   name:           ['name','card name','product name','title','card','item name','product'],
   tcgId:          ['product id','tcgplayer id','tcg id','sku','product_id','productid','tcgplayerid','id'],
   set:            ['set name','set','expansion','series','set_name'],
-  rarity:         ['rarity','rare','card rarity','rarity name','printing','foiling'],
+  rarity:         ['rarity','card rarity','rarity name','printing','foiling'],
   condition:      ['condition','cond','grade','quality'],
   qtyOnHand:      ['quantity','qty','qty on hand','on hand','quantity on hand','total qty','stock','add to quantity'],
   qtyListed:      ['qty listed','listed qty','quantity listed','listed','qty for sale','quantity for sale'],
@@ -1505,7 +1505,7 @@ function previewImport() {
     if (!name) return null;
     const tcgId           = getCol(row, 'tcgId');
     const set             = getCol(row, 'set');
-    const rarity          = getCol(row, 'rarity');
+    const rarity          = normalizeRarity(getCol(row, 'rarity'));
     const rawCond         = getCol(row, 'condition');
     const condition       = normalizeCondition(rawCond) || rawCond || 'NM';
     const qtyOnHand       = parseFloat(getCol(row, 'qtyOnHand'))  || 0;
@@ -1548,6 +1548,80 @@ function normalizeCondition(raw) {
   if (r.includes('heavily')||r==='hp') return 'HP';
   if (r.includes('damage')||r==='dmg'||r==='d') return 'DMG';
   return null;
+}
+
+function normalizeRarity(raw) {
+  if (!raw) return '';
+  const s = raw.trim();
+
+  // ── Short-code map (TCGPlayer, BinderPOS, etc.) ──
+  const SHORT = {
+    'c':'Common', 'u':'Uncommon', 'r':'Rare', 'm':'Mythic Rare',
+    'mr':'Mythic Rare', 'mythic':'Mythic Rare',
+    'l':'Land', 'b':'Basic Land', 'bl':'Basic Land',
+    'uc':'Uncommon', 'sr':'Special Rare', 'ur':'Ultra Rare',
+    'hr':'Hyper Rare', 'ir':'Illustration Rare',
+    'sir':'Special Illustration Rare', 'ar':'Amazing Rare',
+    'rh':'Rare Holo', 'rhv':'Rare Holo V', 'rhvmax':'Rare Holo Vmax',
+    'rhvstar':'Rare Holo Vstar', 'a':'Amazing Rare',
+    'p':'Promo', 't':'Token', 'sp':'Special',
+  };
+  const low = s.toLowerCase().replace(/[^a-z]/g,'');
+  if (SHORT[low]) return SHORT[low];
+
+  // ── Strip everything after the first separator or digit sequence ──
+  // Handles: "Rare - 045/198", "Common 112", "Uncommon/45", "Rare (SV04)", "Rare: 023"
+  let cleaned = s
+    .replace(/\s*[-–—:\/\\|()\[\]{}<>]+.*$/, '')   // strip from separator onward
+    .replace(/\s+\d[\d\/\-\.]*$/, '')               // strip trailing number like "Rare 045"
+    .replace(/\d+\/\d+.*$/, '')                     // strip "045/198" anywhere
+    .replace(/\s{2,}/g,' ')
+    .trim();
+
+  // ── Map known full/partial strings to canonical labels ──
+  const CANON = [
+    [/special\s+illustration\s+rare/i, 'Special Illustration Rare'],
+    [/illustration\s+rare/i,           'Illustration Rare'],
+    [/hyper\s+rare/i,                  'Hyper Rare'],
+    [/amazing\s+rare/i,                'Amazing Rare'],
+    [/ultra\s+rare/i,                  'Ultra Rare'],
+    [/rare\s+holo\s+vstar/i,           'Rare Holo Vstar'],
+    [/rare\s+holo\s+vmax/i,            'Rare Holo Vmax'],
+    [/rare\s+holo\s+v\b/i,             'Rare Holo V'],
+    [/rare\s+holo/i,                   'Rare Holo'],
+    [/secret\s+rare/i,                 'Secret Rare'],
+    [/special\s+rare/i,                'Special Rare'],
+    [/double\s+rare/i,                 'Double Rare'],
+    [/mythic\s+rare/i,                 'Mythic Rare'],
+    [/\bmythic\b/i,                    'Mythic Rare'],
+    [/\brare\b/i,                      'Rare'],
+    [/\buncommon\b/i,                  'Uncommon'],
+    [/\bcommon\b/i,                    'Common'],
+    [/basic\s+land/i,                  'Basic Land'],
+    [/\bland\b/i,                      'Land'],
+    [/\bpromo\b/i,                     'Promo'],
+    [/\btoken\b/i,                     'Token'],
+    [/\bspecial\b/i,                   'Special'],
+  ];
+  for (const [re, label] of CANON) {
+    if (re.test(cleaned)) return label;
+  }
+
+  // ── Fallback: title-case whatever is left, as long as it looks like text ──
+  if (/^\d/.test(cleaned) || cleaned.length > 40) return '';  // reject if starts with digit or too long
+  return cleaned.replace(/\b\w/g, c => c.toUpperCase()) || '';
+}
+
+// Retroactively clean rarity values already in localStorage
+function cleanExistingRarities() {
+  let changed = false;
+  singles = singles.map(s => {
+    if (!s.rarity) return s;
+    const normalized = normalizeRarity(s.rarity);
+    if (normalized !== s.rarity) { changed = true; return { ...s, rarity: normalized }; }
+    return s;
+  });
+  if (changed) save();
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -1707,22 +1781,23 @@ function clearAllSingles() {
 let skChartModes = { expansion: 'qty', rarity: 'qty' };
 let skPriceSort  = 'delta';
 
-const RARITY_ORDER = ['mythic','mythic rare','rare','uncommon','common','land','basic land','special','token','promo'];
+const RARITY_ORDER = ['Mythic','Mythic Rare','Rare','Rare Holo','Rare Holo V','Rare Holo Vmax','Rare Holo Vstar','Rare Ultra','Illustration Rare','Special Illustration Rare','Hyper Rare','Uncommon','Common','Land','Basic Land','Special','Token','Promo'];
 const RARITY_COLORS = {
-  'mythic rare':'#f97316','mythic':'#f97316',
-  'rare':'#e8c547',
-  'uncommon':'#a78bfa',
-  'common':'#6b7280',
-  'land':'#4ecdc4','basic land':'#4ecdc4',
-  'special':'#3b82f6','token':'#34d399','promo':'#ff6b6b',
+  'Mythic Rare':'#f97316','Mythic':'#f97316',
+  'Rare':'#e8c547','Rare Holo':'#e8c547','Rare Holo V':'#e8c547','Rare Holo Vmax':'#f97316','Rare Holo Vstar':'#f97316',
+  'Rare Ultra':'#f97316','Illustration Rare':'#a78bfa','Special Illustration Rare':'#ff6b6b','Hyper Rare':'#ff6b6b',
+  'Uncommon':'#a78bfa',
+  'Common':'#6b7280',
+  'Land':'#4ecdc4','Basic Land':'#4ecdc4',
+  'Special':'#3b82f6','Token':'#34d399','Promo':'#ff6b6b',
 };
 function rarityColor(r) {
   if (!r) return 'var(--muted)';
-  return RARITY_COLORS[r.toLowerCase()] || 'var(--accent2)';
+  return RARITY_COLORS[r] || RARITY_COLORS[r.toLowerCase()] || 'var(--accent2)';
 }
 function raritySort(a, b) {
-  const ai = RARITY_ORDER.indexOf(a.toLowerCase());
-  const bi = RARITY_ORDER.indexOf(b.toLowerCase());
+  const ai = RARITY_ORDER.indexOf(a);
+  const bi = RARITY_ORDER.indexOf(b);
   if (ai === -1 && bi === -1) return a.localeCompare(b);
   if (ai === -1) return 1;
   if (bi === -1) return -1;
@@ -3249,6 +3324,9 @@ document.getElementById('sale-modal').addEventListener('click',e=>{if(e.target==
 document.getElementById('break-modal').addEventListener('click',e=>{if(e.target===e.currentTarget) closeModal('break-modal');});
 document.getElementById('task-title').addEventListener('keydown',e=>{if(e.key==='Enter') addTask();});
 document.getElementById('rel-name').addEventListener('keydown',e=>{if(e.key==='Enter') addRelease();});
+
+// Clean any dirty rarity values already in storage before first render
+cleanExistingRarities();
 
 renderReleases();
 renderChecklist();
