@@ -1508,8 +1508,8 @@ function previewImport() {
     const rarity          = normalizeRarity(getCol(row, 'rarity'));
     const rawCond         = getCol(row, 'condition');
     const condition       = normalizeCondition(rawCond) || rawCond || 'NM';
-    const qtyOnHand       = parseFloat(getCol(row, 'qtyOnHand'))  || 0;
-    const qtyListed       = parseFloat(getCol(row, 'qtyListed'))  || 0;
+    const qtyOnHand       = Math.round(parseFloat(getCol(row, 'qtyOnHand'))  || 0);
+    const qtyListed       = Math.round(parseFloat(getCol(row, 'qtyListed'))  || 0);
     const marketPrice     = parseFloat(getCol(row, 'marketPrice').replace(/[^0-9.]/g,'')) || 0;
     const tcgListedPrice  = parseFloat(getCol(row, 'tcgListedPrice').replace(/[^0-9.]/g,'')) || 0;
 
@@ -1619,6 +1619,21 @@ function cleanExistingRarities() {
     if (!s.rarity) return s;
     const normalized = normalizeRarity(s.rarity);
     if (normalized !== s.rarity) { changed = true; return { ...s, rarity: normalized }; }
+    return s;
+  });
+  if (changed) save();
+}
+
+// Retroactively fix any decimal quantities already in localStorage
+function cleanExistingQtys() {
+  let changed = false;
+  singles = singles.map(s => {
+    const qtyOnHand = Math.round(s.qtyOnHand || 0);
+    const qtyListed = Math.round(s.qtyListed || 0);
+    if (qtyOnHand !== s.qtyOnHand || qtyListed !== s.qtyListed) {
+      changed = true;
+      return { ...s, qtyOnHand, qtyListed };
+    }
     return s;
   });
   if (changed) save();
@@ -3325,8 +3340,9 @@ document.getElementById('break-modal').addEventListener('click',e=>{if(e.target=
 document.getElementById('task-title').addEventListener('keydown',e=>{if(e.key==='Enter') addTask();});
 document.getElementById('rel-name').addEventListener('keydown',e=>{if(e.key==='Enter') addRelease();});
 
-// Clean any dirty rarity values already in storage before first render
+// Clean any dirty rarity values and decimal quantities already in storage before first render
 cleanExistingRarities();
+cleanExistingQtys();
 
 renderReleases();
 renderChecklist();
