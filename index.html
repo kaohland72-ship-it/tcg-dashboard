@@ -3610,7 +3610,7 @@ async function sbFetch(path, options = {}) {
       'apikey':        key,
       'Authorization': `Bearer ${key}`,
       'Content-Type':  'application/json',
-      'Prefer':        options.prefer || '',
+      'Prefer':        'return=minimal',
       ...(options.headers || {}),
     },
   });
@@ -3618,7 +3618,10 @@ async function sbFetch(path, options = {}) {
     const err = await res.text();
     throw new Error(`Supabase error ${res.status}: ${err}`);
   }
-  return res.status === 204 ? null : res.json();
+  // Handle empty responses (204 No Content or empty body)
+  const text = await res.text();
+  if (!text || !text.trim()) return null;
+  try { return JSON.parse(text); } catch(e) { return null; }
 }
 
 // Update sync indicator in toolbar
@@ -3701,15 +3704,30 @@ async function saveSbConfig() {
 async function sbPushAll() {
   if (!sbReady()) { sbStatusMsg('Configure Supabase first.', 'var(--accent3)'); return; }
   setSyncStatus('busy', 'Syncing…');
-  sbStatusMsg('Pushing ' + singles.length + ' cards to Supabase…', 'var(--muted)');
+  sbStatusMsg('Preparing data…', 'var(--muted)');
   try {
-    // Push in batches of 500 to avoid request size limits
-    const BATCH = 500;
-    // First delete all existing rows and replace (full replace matches our import model)
-    await sbFetch('singles?id=neq.0', { method:'DELETE', prefer:'return=minimal' });
+    const BATCH = 200;
 
-    for (let i = 0; i < singles.length; i += BATCH) {
-      const batch = singles.slice(i, i + BATCH).map(s => ({
+    // Deduplicate singles by ID in memory before pushing
+    const seen = {};
+    singles.forEach(s => {
+      const key = String(s.id);
+      if (!seen[key] || (s.lastUpdated||'') > (seen[key].lastUpdated||'')) seen[key] = s;
+    });
+    const dedupedSingles = Object.values(seen).filter(s => s.qtyListed > 0);
+
+    sbStatusMsg(`Clearing existing data…`, 'var(--muted)');
+
+    // Delete all existing singles rows using a filter that matches all rows
+    await sbFetch('singles?qty_listed=gte.0', { method:'DELETE' });
+    // Delete all price history
+    await sbFetch('price_history?qty=gte.0', { method:'DELETE' });
+
+    sbStatusMsg(`Pushing ${dedupedSingles.length} cards in batches…`, 'var(--muted)');
+
+    // Insert singles in batches
+    for (let i = 0; i < dedupedSingles.length; i += BATCH) {
+      const batch = dedupedSingles.slice(i, i + BATCH).map(s => ({
         id:           String(s.id),
         name:         s.name,
         tcg_id:       s.tcgId   || null,
@@ -3721,35 +3739,30 @@ async function sbPushAll() {
         listed_price: s.tcgListedPrice || 0,
         last_updated: s.lastUpdated || null,
       }));
-      await sbFetch('singles', {
-        method:  'POST',
-        prefer:  'resolution=merge-duplicates',
-        body:    JSON.stringify(batch),
-      });
+      await sbFetch('singles', { method:'POST', body:JSON.stringify(batch) });
+      sbStatusMsg(`Pushing cards… ${Math.min(i+BATCH, dedupedSingles.length)} / ${dedupedSingles.length}`, 'var(--muted)');
     }
 
-    // Push price history
-    await sbFetch('price_history?id=gt.0', { method:'DELETE', prefer:'return=minimal' });
+    // Collect and insert price history
     const allSnaps = [];
-    singles.forEach(s => {
+    dedupedSingles.forEach(s => {
       (s.priceHistory || []).forEach(p => {
         allSnaps.push({ single_id:String(s.id), snap_date:p.date, price:p.price, qty:p.qty, total_value:p.totalValue });
       });
     });
+
     for (let i = 0; i < allSnaps.length; i += BATCH) {
-      await sbFetch('price_history', {
-        method: 'POST',
-        prefer: 'resolution=merge-duplicates',
-        body:   JSON.stringify(allSnaps.slice(i, i + BATCH)),
-      });
+      await sbFetch('price_history', { method:'POST', body:JSON.stringify(allSnaps.slice(i, i+BATCH)) });
+      sbStatusMsg(`Pushing price history… ${Math.min(i+BATCH, allSnaps.length)} / ${allSnaps.length}`, 'var(--muted)');
     }
 
     setSyncStatus('ok', 'Synced ' + fmtDate(todayIso()));
-    sbStatusMsg(`✓ Push complete — ${singles.length} cards and ${allSnaps.length} price snapshots synced to Supabase.`, '#3ecf8e');
+    sbStatusMsg(`✓ Push complete — ${dedupedSingles.length} cards and ${allSnaps.length} snapshots synced.`, '#3ecf8e');
 
-    // Now safe to clear singles from localStorage since they're in Supabase
-    localStorage.removeItem('tcg_singles');
+    // Clear singles from localStorage — they now live in Supabase
+    try { localStorage.removeItem('tcg_singles'); } catch(e) {}
     updateStorageGauge();
+
   } catch(e) {
     setSyncStatus('err', 'Sync failed');
     sbStatusMsg('✗ Push failed: ' + e.message, 'var(--accent3)');
