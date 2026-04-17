@@ -410,6 +410,96 @@ tr:hover td{background:rgba(255,255,255,.018)}
   .c4,.c5{grid-template-columns:1fr 1fr}
   .c4g,.c5g{grid-template-columns:repeat(2,1fr)}
 }
+
+/* ══ MOBILE — PORTRAIT ══ */
+@media(max-width:640px){
+  /* Header */
+  header{padding:10px 14px;gap:8px}
+  .logo{font-size:17px}
+  .header-pills{display:none} /* hide stat pills on small screens — shown in tab content */
+  #current-date{display:none}
+
+  /* Tab bar */
+  .tab-bar{padding:0;top:46px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .tab-btn{padding:9px 12px;font-size:10px;letter-spacing:.4px}
+
+  /* Data toolbar */
+  .data-toolbar{padding:6px 10px;gap:5px;flex-wrap:wrap}
+  .data-toolbar-label{display:none}
+  .btn-export,.btn-import-data,.btn-sb-settings{padding:4px 9px;font-size:10px}
+  .sync-label{display:none}
+  .storage-gauge{margin-left:0}
+
+  /* General layout */
+  .sw{padding:14px}
+  .inv-panel,.tcg-panel{padding:14px}
+  .tab-panel-inner{padding:14px}
+
+  /* Cards — single column on very small screens */
+  .c4g,.c5g,.c3g{grid-template-columns:repeat(2,1fr)}
+  .cards{gap:7px;margin-top:12px}
+  .card{padding:10px 12px}
+  .card .val{font-size:16px}
+
+  /* Forms — stack all columns */
+  .fr,.fr.c5,.fr.c4{grid-template-columns:1fr;gap:8px}
+  .inv-form-box{padding:12px}
+  .form-tabs{flex-wrap:wrap;gap:4px}
+  .form-tab{font-size:10px;padding:6px 10px;flex:1;text-align:center;min-width:80px}
+
+  /* Tables — horizontal scroll */
+  .tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{min-width:500px}
+  th,td{padding:6px 8px;font-size:10px}
+
+  /* Charts */
+  .chart-grid-2{grid-template-columns:1fr}
+  .chart-box{padding:12px}
+  .hbar-row{grid-template-columns:90px 1fr 60px;gap:5px}
+  .hbar-label{font-size:9px}
+
+  /* Singles tab */
+  .drop-zone{padding:18px 12px}
+  .dz-title{font-size:12px}
+  .dz-sub{font-size:10px}
+
+  /* Mapper grid */
+  .mapper-grid{grid-template-columns:1fr}
+
+  /* Inventory grid panels */
+  div[style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important}
+
+  /* Supabase modal */
+  .sb-modal-box{padding:18px 16px}
+  .sb-actions{flex-direction:column}
+  .sb-actions .btn{width:100%}
+
+  /* Release tracker */
+  .rel-form-box > div:first-child{grid-template-columns:1fr!important}
+  .rel-item{gap:8px;padding:8px 2px}
+  .rel-name{font-size:11.5px}
+
+  /* Checklist */
+  .cl-add{padding:10px}
+  .cl-add-row{flex-direction:column;gap:6px}
+
+  /* SKU meta panel */
+  .sku-meta-panel > div[style*="grid-template-columns"]{grid-template-columns:1fr!important}
+  .sku-meta-item{grid-template-columns:1fr 1fr!important;gap:4px}
+
+  /* Modals */
+  .modal-box{margin:10px;padding:18px 14px;max-height:90vh;overflow-y:auto}
+  .modal-grid{grid-template-columns:1fr!important}
+
+  /* Revenue bar chart */
+  .bar-col{min-width:40px}
+  .bar-label{font-size:8px}
+
+  /* Snap section */
+  .snap-card-picker{flex-direction:column}
+  .snap-hist-row{grid-template-columns:80px 1fr 70px;font-size:9.5px}
+  .snap-hist-row span:nth-child(4),.snap-hist-row span:nth-child(5){display:none}
+}
 </style>
 </head>
 <body>
@@ -3961,31 +4051,46 @@ async function sbPullAll() {
   setSyncStatus('busy', 'Loading…');
   sbStatusMsg('Pulling singles from Supabase…', 'var(--muted)');
   try {
-    // Pull in pages of 1000
-    let allRows = [], page = 0;
+    // Pull all singles using range headers for reliable pagination
+    let allRows = [];
+    let offset = 0;
+    const PAGE = 1000;
     while (true) {
-      const rows = await sbFetch(`singles?select=*&order=name.asc&limit=1000&offset=${page*1000}`);
-      if (!rows || !rows.length) break;
+      sbStatusMsg(`Pulling singles… ${allRows.length} loaded so far`, 'var(--muted)');
+      const rows = await sbFetch(
+        `singles?select=*&order=name.asc&limit=${PAGE}&offset=${offset}`
+      );
+      if (!rows || rows.length === 0) break;
       allRows = allRows.concat(rows);
-      if (rows.length < 1000) break;
-      page++;
+      if (rows.length < PAGE) break; // last page
+      offset += PAGE;
     }
 
-    // Pull price history
-    let allHist = [], hpage = 0;
+    sbStatusMsg(`Loaded ${allRows.length} cards — pulling price history…`, 'var(--muted)');
+
+    // Pull price history with same robust pagination
+    let allHist = [];
+    offset = 0;
     while (true) {
-      const rows = await sbFetch(`price_history?select=*&limit=1000&offset=${hpage*1000}`);
-      if (!rows || !rows.length) break;
+      const rows = await sbFetch(
+        `price_history?select=*&limit=${PAGE}&offset=${offset}`
+      );
+      if (!rows || rows.length === 0) break;
       allHist = allHist.concat(rows);
-      if (rows.length < 1000) break;
-      hpage++;
+      if (rows.length < PAGE) break;
+      offset += PAGE;
     }
 
     // Group history by single_id
     const histById = {};
     allHist.forEach(h => {
       if (!histById[h.single_id]) histById[h.single_id] = [];
-      histById[h.single_id].push({ date:h.snap_date, price:parseFloat(h.price), qty:h.qty, totalValue:parseFloat(h.total_value) });
+      histById[h.single_id].push({
+        date:       h.snap_date,
+        price:      parseFloat(h.price),
+        qty:        h.qty,
+        totalValue: parseFloat(h.total_value)
+      });
     });
 
     // Reconstruct singles array
@@ -4010,7 +4115,10 @@ async function sbPullAll() {
     sbStatusMsg(`✓ Pulled ${singles.length} cards and ${allHist.length} snapshots from Supabase.`, '#3ecf8e');
 
     renderSingles(); renderSinglesKPIs(); renderSinglesCharts(); renderSnapUI(); updateHeader(); updateStorageGauge();
-    closeSbModal();
+
+    // Close modal after short delay so user can see the success message
+    setTimeout(() => closeSbModal(), 1500);
+
   } catch(e) {
     setSyncStatus('err', 'Pull failed');
     sbStatusMsg('✗ Pull failed: ' + e.message, 'var(--accent3)');
@@ -4074,8 +4182,9 @@ async function sbInit() {
       ['sb-push-btn','sb-pull-btn','sb-push-sealed-btn','sb-pull-sealed-btn'].forEach(id => {
         const el = document.getElementById(id); if(el) el.disabled = false;
       });
-      // Auto-pull sealed inventory on startup so all devices stay in sync
+      // Auto-pull both sealed and singles on startup
       await sbPullSealed();
+      await sbPullAll();
     } else {
       setSyncStatus('err', 'Auth error');
     }
