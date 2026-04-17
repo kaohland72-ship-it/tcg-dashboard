@@ -329,6 +329,23 @@ tr:hover td{background:rgba(255,255,255,.018)}
 .storage-bar-track{width:80px;height:7px;background:var(--border);border-radius:4px;overflow:hidden;flex-shrink:0}
 .storage-bar-fill{height:100%;border-radius:4px;transition:width .4s,background .4s}
 .storage-label{font-size:9.5px;color:var(--muted);font-family:'DM Mono',monospace;white-space:nowrap}
+/* Supabase sync */
+.btn-sb-settings{background:rgba(62,207,142,.12);color:#3ecf8e;border:1px solid rgba(62,207,142,.3);padding:5px 12px;border-radius:6px;font-size:11px;cursor:pointer;font-family:'DM Mono',monospace;transition:all .15s;white-space:nowrap}
+.btn-sb-settings:hover{background:rgba(62,207,142,.25)}
+.sync-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:5px;flex-shrink:0}
+.sync-dot.ok{background:#3ecf8e}
+.sync-dot.err{background:var(--accent3)}
+.sync-dot.busy{background:var(--accent);animation:pulse .8s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.sync-label{font-size:9.5px;font-family:'DM Mono',monospace;color:var(--muted);white-space:nowrap}
+/* Supabase settings modal */
+.sb-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;align-items:center;justify-content:center}
+.sb-modal.open{display:flex}
+.sb-modal-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px 32px;width:min(520px,92vw);box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.sb-modal-title{font-family:'Syne',sans-serif;font-size:16px;font-weight:800;margin-bottom:6px;color:var(--text)}
+.sb-modal-sub{font-size:10.5px;color:var(--muted);margin-bottom:20px;line-height:1.5}
+.sb-status-box{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:18px;font-size:10.5px;min-height:36px}
+.sb-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px;justify-content:flex-end}
 /* ── PRICE SNAPSHOT LOG ── */
 .snap-section{margin-top:22px;border-top:1px solid var(--border);padding-top:18px}
 .snap-card-picker{display:flex;gap:10px;align-items:end;margin-bottom:16px;flex-wrap:wrap}
@@ -426,10 +443,45 @@ tr:hover td{background:rgba(255,255,255,.018)}
     ⬆ Import Backup
     <input type="file" accept=".json" id="import-json-input" onchange="importAllData(event)" style="display:none"/>
   </label>
-  <span class="data-toolbar-info" id="data-toolbar-info">All data stored locally in your browser</span>
+  <button class="btn-sb-settings" onclick="openSbModal()">☁ Supabase</button>
+  <div style="display:flex;align-items:center;gap:5px;margin-left:4px">
+    <span class="sync-dot err" id="sync-dot"></span>
+    <span class="sync-label" id="sync-label">Not connected</span>
+  </div>
+  <span class="data-toolbar-info" id="data-toolbar-info" style="margin-left:8px"></span>
   <div class="storage-gauge" title="localStorage usage estimate">
     <div class="storage-bar-track"><div class="storage-bar-fill" id="storage-bar-fill" style="width:0%;background:var(--sale)"></div></div>
     <span class="storage-label" id="storage-label">— / 5MB</span>
+  </div>
+</div>
+
+<!-- ══ SUPABASE SETTINGS MODAL ══ -->
+<div class="sb-modal" id="sb-modal">
+  <div class="sb-modal-box">
+    <div class="sb-modal-title">☁ Supabase Connection</div>
+    <div class="sb-modal-sub">Connect to Supabase to sync your singles inventory to the cloud — no localStorage size limits, automatic sync across all devices.</div>
+    <div class="fg" style="margin-bottom:10px">
+      <label>Project URL</label>
+      <input type="text" id="sb-url-input" placeholder="https://xxxxxxxxxx.supabase.co" style="width:100%;font-family:'DM Mono',monospace;font-size:11px"/>
+    </div>
+    <div class="fg" style="margin-bottom:14px">
+      <label>Anon / Public Key</label>
+      <input type="password" id="sb-key-input" placeholder="eyJ..." style="width:100%;font-family:'DM Mono',monospace;font-size:11px"/>
+    </div>
+    <div class="sb-status-box" id="sb-status-box">Enter your Supabase URL and anon key above, then click Connect.</div>
+    <div class="sb-actions">
+      <button class="btn btn-outline btn-sm" onclick="closeSbModal()">Close</button>
+      <button class="btn btn-sm" onclick="testSbConnection()" style="background:rgba(62,207,142,.2);color:#3ecf8e;border-color:rgba(62,207,142,.4)">Test Connection</button>
+      <button class="btn btn-sm" onclick="saveSbConfig()" style="background:#3ecf8e;color:#0a0a0a;border:none">Save &amp; Connect</button>
+    </div>
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+      <div style="font-size:9.5px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">Sync Actions</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-sm btn-outline" onclick="sbPushAll()" id="sb-push-btn" disabled>⬆ Push All to Supabase</button>
+        <button class="btn btn-sm btn-outline" onclick="sbPullAll()" id="sb-pull-btn" disabled>⬇ Pull from Supabase</button>
+      </div>
+      <div style="font-size:9.5px;color:var(--muted);margin-top:8px">Push sends your current singles to Supabase. Pull loads singles from Supabase into this device.</div>
+    </div>
   </div>
 </div>
 
@@ -1803,6 +1855,7 @@ function confirmImport() {
   imports.push({ date:now, added, updated, purged, total:previewData.length });
   save();
   updateStorageGauge();
+  sbSyncAfterImport(); // async — fires in background, doesn't block UI
   resetImport();
   renderSingles();
   renderSinglesKPIs();
@@ -3530,7 +3583,304 @@ function renderSnapUI() {
 }
 
 // ══════════════════════════════════════════════════════════════
-// INIT
+// SUPABASE INTEGRATION
+// ══════════════════════════════════════════════════════════════
+const SB_URL_KEY = 'tcghq_sb_url';
+const SB_KEY_KEY = 'tcghq_sb_key';
+
+function getSbConfig() {
+  return {
+    url: localStorage.getItem(SB_URL_KEY) || '',
+    key: localStorage.getItem(SB_KEY_KEY) || '',
+  };
+}
+
+function sbReady() {
+  const { url, key } = getSbConfig();
+  return url && key;
+}
+
+// Low-level fetch wrapper for Supabase REST API
+async function sbFetch(path, options = {}) {
+  const { url, key } = getSbConfig();
+  if (!url || !key) throw new Error('Supabase not configured');
+  const res = await fetch(`${url}/rest/v1/${path}`, {
+    ...options,
+    headers: {
+      'apikey':        key,
+      'Authorization': `Bearer ${key}`,
+      'Content-Type':  'application/json',
+      'Prefer':        options.prefer || '',
+      ...(options.headers || {}),
+    },
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Supabase error ${res.status}: ${err}`);
+  }
+  return res.status === 204 ? null : res.json();
+}
+
+// Update sync indicator in toolbar
+function setSyncStatus(state, msg) {
+  const dot   = document.getElementById('sync-dot');
+  const label = document.getElementById('sync-label');
+  if (!dot || !label) return;
+  dot.className   = 'sync-dot ' + state;   // ok | err | busy
+  label.textContent = msg;
+}
+
+// ── Modal open/close ──
+function openSbModal() {
+  const { url, key } = getSbConfig();
+  document.getElementById('sb-url-input').value = url;
+  document.getElementById('sb-key-input').value = key;
+  document.getElementById('sb-modal').classList.add('open');
+  if (sbReady()) {
+    document.getElementById('sb-push-btn').disabled = false;
+    document.getElementById('sb-pull-btn').disabled = false;
+  }
+}
+function closeSbModal() {
+  document.getElementById('sb-modal').classList.remove('open');
+}
+
+function sbStatusMsg(msg, color) {
+  const el = document.getElementById('sb-status-box');
+  if (el) { el.textContent = msg; el.style.color = color || 'var(--text)'; }
+}
+
+// ── Test connection ──
+async function testSbConnection() {
+  const url = document.getElementById('sb-url-input').value.trim();
+  const key = document.getElementById('sb-key-input').value.trim();
+  if (!url || !key) { sbStatusMsg('Please enter both URL and key.', 'var(--accent3)'); return; }
+  sbStatusMsg('Testing connection…', 'var(--muted)');
+  try {
+    const res = await fetch(`${url}/rest/v1/singles?limit=1`, {
+      headers: { 'apikey': key, 'Authorization': `Bearer ${key}` }
+    });
+    if (res.ok) {
+      sbStatusMsg('✓ Connection successful — Supabase is reachable.', '#3ecf8e');
+    } else {
+      sbStatusMsg(`✗ Connection failed (${res.status}) — check your URL and key.`, 'var(--accent3)');
+    }
+  } catch(e) {
+    sbStatusMsg('✗ Network error — ' + e.message, 'var(--accent3)');
+  }
+}
+
+// ── Save config ──
+async function saveSbConfig() {
+  const url = document.getElementById('sb-url-input').value.trim();
+  const key = document.getElementById('sb-key-input').value.trim();
+  if (!url || !key) { sbStatusMsg('Both URL and key are required.', 'var(--accent3)'); return; }
+  localStorage.setItem(SB_URL_KEY, url);
+  localStorage.setItem(SB_KEY_KEY, key);
+  sbStatusMsg('✓ Saved. Testing connection…', 'var(--muted)');
+  try {
+    const res = await fetch(`${url}/rest/v1/singles?limit=1`, {
+      headers: { 'apikey': key, 'Authorization': `Bearer ${key}` }
+    });
+    if (res.ok) {
+      sbStatusMsg('✓ Connected and saved. Use Push to sync your singles to Supabase.', '#3ecf8e');
+      setSyncStatus('ok', 'Connected');
+      document.getElementById('sb-push-btn').disabled = false;
+      document.getElementById('sb-pull-btn').disabled = false;
+    } else {
+      sbStatusMsg(`Connected but got error ${res.status} — check table permissions.`, 'var(--accent)');
+      setSyncStatus('err', 'Config error');
+    }
+  } catch(e) {
+    sbStatusMsg('Saved but could not reach Supabase: ' + e.message, 'var(--accent3)');
+    setSyncStatus('err', 'Unreachable');
+  }
+}
+
+// ── Push all singles to Supabase ──
+async function sbPushAll() {
+  if (!sbReady()) { sbStatusMsg('Configure Supabase first.', 'var(--accent3)'); return; }
+  setSyncStatus('busy', 'Syncing…');
+  sbStatusMsg('Pushing ' + singles.length + ' cards to Supabase…', 'var(--muted)');
+  try {
+    // Push in batches of 500 to avoid request size limits
+    const BATCH = 500;
+    // First delete all existing rows and replace (full replace matches our import model)
+    await sbFetch('singles?id=neq.0', { method:'DELETE', prefer:'return=minimal' });
+
+    for (let i = 0; i < singles.length; i += BATCH) {
+      const batch = singles.slice(i, i + BATCH).map(s => ({
+        id:           String(s.id),
+        name:         s.name,
+        tcg_id:       s.tcgId   || null,
+        set_name:     s.set     || null,
+        rarity:       s.rarity  || null,
+        condition:    s.condition || 'NM',
+        qty_listed:   s.qtyListed || 0,
+        market_price: s.marketPrice || 0,
+        listed_price: s.tcgListedPrice || 0,
+        last_updated: s.lastUpdated || null,
+      }));
+      await sbFetch('singles', {
+        method:  'POST',
+        prefer:  'resolution=merge-duplicates',
+        body:    JSON.stringify(batch),
+      });
+    }
+
+    // Push price history
+    await sbFetch('price_history?id=gt.0', { method:'DELETE', prefer:'return=minimal' });
+    const allSnaps = [];
+    singles.forEach(s => {
+      (s.priceHistory || []).forEach(p => {
+        allSnaps.push({ single_id:String(s.id), snap_date:p.date, price:p.price, qty:p.qty, total_value:p.totalValue });
+      });
+    });
+    for (let i = 0; i < allSnaps.length; i += BATCH) {
+      await sbFetch('price_history', {
+        method: 'POST',
+        prefer: 'resolution=merge-duplicates',
+        body:   JSON.stringify(allSnaps.slice(i, i + BATCH)),
+      });
+    }
+
+    setSyncStatus('ok', 'Synced ' + fmtDate(todayIso()));
+    sbStatusMsg(`✓ Push complete — ${singles.length} cards and ${allSnaps.length} price snapshots synced to Supabase.`, '#3ecf8e');
+
+    // Now safe to clear singles from localStorage since they're in Supabase
+    localStorage.removeItem('tcg_singles');
+    updateStorageGauge();
+  } catch(e) {
+    setSyncStatus('err', 'Sync failed');
+    sbStatusMsg('✗ Push failed: ' + e.message, 'var(--accent3)');
+  }
+}
+
+// ── Pull singles from Supabase ──
+async function sbPullAll() {
+  if (!sbReady()) { sbStatusMsg('Configure Supabase first.', 'var(--accent3)'); return; }
+  setSyncStatus('busy', 'Loading…');
+  sbStatusMsg('Pulling singles from Supabase…', 'var(--muted)');
+  try {
+    // Pull in pages of 1000
+    let allRows = [], page = 0;
+    while (true) {
+      const rows = await sbFetch(`singles?select=*&order=name.asc&limit=1000&offset=${page*1000}`);
+      if (!rows || !rows.length) break;
+      allRows = allRows.concat(rows);
+      if (rows.length < 1000) break;
+      page++;
+    }
+
+    // Pull price history
+    let allHist = [], hpage = 0;
+    while (true) {
+      const rows = await sbFetch(`price_history?select=*&limit=1000&offset=${hpage*1000}`);
+      if (!rows || !rows.length) break;
+      allHist = allHist.concat(rows);
+      if (rows.length < 1000) break;
+      hpage++;
+    }
+
+    // Group history by single_id
+    const histById = {};
+    allHist.forEach(h => {
+      if (!histById[h.single_id]) histById[h.single_id] = [];
+      histById[h.single_id].push({ date:h.snap_date, price:parseFloat(h.price), qty:h.qty, totalValue:parseFloat(h.total_value) });
+    });
+
+    // Reconstruct singles array
+    singles = allRows.map(r => ({
+      id:             r.id,
+      name:           r.name,
+      tcgId:          r.tcg_id      || null,
+      set:            r.set_name    || '',
+      rarity:         r.rarity      || '',
+      condition:      r.condition   || 'NM',
+      qtyListed:      r.qty_listed  || 0,
+      marketPrice:    parseFloat(r.market_price) || 0,
+      tcgListedPrice: parseFloat(r.listed_price) || 0,
+      lastUpdated:    r.last_updated || '',
+      priceHistory:   (histById[r.id] || []).sort((a,b) => a.date.localeCompare(b.date)),
+    }));
+
+    // Save compact to localStorage as fallback cache
+    try { localStorage.setItem('tcg_singles', JSON.stringify(compactSingles(singles))); } catch(e) {}
+
+    setSyncStatus('ok', 'Pulled ' + fmtDate(todayIso()));
+    sbStatusMsg(`✓ Pulled ${singles.length} cards and ${allHist.length} snapshots from Supabase.`, '#3ecf8e');
+
+    renderSingles(); renderSinglesKPIs(); renderSinglesCharts(); renderSnapUI(); updateHeader(); updateStorageGauge();
+    closeSbModal();
+  } catch(e) {
+    setSyncStatus('err', 'Pull failed');
+    sbStatusMsg('✗ Pull failed: ' + e.message, 'var(--accent3)');
+  }
+}
+
+// ── Auto-sync to Supabase after every CSV import ──
+async function sbSyncAfterImport() {
+  if (!sbReady()) return; // silent no-op if not configured
+  setSyncStatus('busy', 'Syncing…');
+  try {
+    const BATCH = 500;
+    // Upsert current singles (don't delete first — merge on id)
+    for (let i = 0; i < singles.length; i += BATCH) {
+      const batch = singles.slice(i, i + BATCH).map(s => ({
+        id: String(s.id), name:s.name, tcg_id:s.tcgId||null,
+        set_name:s.set||null, rarity:s.rarity||null, condition:s.condition||'NM',
+        qty_listed:s.qtyListed||0, market_price:s.marketPrice||0,
+        listed_price:s.tcgListedPrice||0, last_updated:s.lastUpdated||null,
+      }));
+      await sbFetch('singles', { method:'POST', prefer:'resolution=merge-duplicates', body:JSON.stringify(batch) });
+    }
+    // Delete rows no longer in inventory (full replace)
+    const activeIds = singles.map(s => String(s.id));
+    // Delete in chunks to avoid URL length limits
+    for (let i = 0; i < activeIds.length; i += 200) {
+      const chunk = activeIds.slice(i, i+200);
+      await sbFetch(`singles?id=not.in.(${chunk.join(',')})`, { method:'DELETE', prefer:'return=minimal' });
+    }
+    // Upsert new price snapshots
+    const newSnaps = [];
+    singles.forEach(s => {
+      (s.priceHistory||[]).forEach(p => {
+        newSnaps.push({ single_id:String(s.id), snap_date:p.date, price:p.price, qty:p.qty, total_value:p.totalValue });
+      });
+    });
+    for (let i = 0; i < newSnaps.length; i += BATCH) {
+      await sbFetch('price_history', { method:'POST', prefer:'resolution=merge-duplicates', body:JSON.stringify(newSnaps.slice(i,i+BATCH)) });
+    }
+    setSyncStatus('ok', 'Synced ' + fmtDate(todayIso()));
+    // Clear singles from localStorage now that Supabase has them
+    try { localStorage.removeItem('tcg_singles'); } catch(e) {}
+    updateStorageGauge();
+  } catch(e) {
+    setSyncStatus('err', 'Sync failed');
+    console.warn('Supabase auto-sync failed:', e.message);
+  }
+}
+
+// ── Init: check if Supabase is configured and verify connection ──
+async function sbInit() {
+  if (!sbReady()) { setSyncStatus('err', 'Not connected'); return; }
+  setSyncStatus('busy', 'Connecting…');
+  try {
+    const { url, key } = getSbConfig();
+    const res = await fetch(`${url}/rest/v1/singles?limit=1`, {
+      headers: { 'apikey':key, 'Authorization':`Bearer ${key}` }
+    });
+    if (res.ok) {
+      setSyncStatus('ok', 'Connected');
+      document.getElementById('sb-push-btn').disabled = false;
+      document.getElementById('sb-pull-btn').disabled = false;
+    } else {
+      setSyncStatus('err', 'Auth error');
+    }
+  } catch(e) {
+    setSyncStatus('err', 'Unreachable');
+  }
+}
 // ══════════════════════════════════════════════════════════════
 document.getElementById('current-date').textContent=today().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
 document.getElementById('buy-date').value=todayIso();
@@ -3557,6 +3907,8 @@ renderReleases();
 renderChecklist();
 updateHeader();
 setInterval(renderChecklist,60000);
+sbInit();
+document.getElementById('sb-modal').addEventListener('click', e => { if(e.target===e.currentTarget) closeSbModal(); });
 </script>
 </body>
 </html>
