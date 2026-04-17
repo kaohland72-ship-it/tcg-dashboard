@@ -1659,28 +1659,33 @@ function compactSingles(arr) {
     if (s.condition && s.condition !== 'NM') out.c = s.condition;
     if (s.marketPrice)    out.m = s.marketPrice;
     if (s.tcgListedPrice) out.l = s.tcgListedPrice;
-    if (s.priceHistory?.length) out.h = s.priceHistory.map(p=>({d:p.date,p:p.price,q:p.qty,v:p.totalValue}));
+    if (s.priceHistory?.length) out.h = s.priceHistory.map(p=>({d:p.date||p.d,p:p.price||p.p,q:p.qty||p.q,v:p.totalValue||p.v}));
     return out;
   });
 }
 
-// Expand compacted singles back to full field names for use in the app
+// Expand any stored format (old verbose or new compact) into full field names for use in the app
 function expandSingles(arr) {
   return arr.map(s => {
-    // Handle both old verbose format and new compact format
-    if (s.name !== undefined) return s; // already verbose — old format
+    const isCompact = s.name === undefined; // compact records use short keys
     return {
       id:             s.id,
-      name:           s.n  || '',
-      tcgId:          s.t  || null,
-      set:            s.e  || '',
-      rarity:         s.r  || '',
-      condition:      s.c  || 'NM',
-      qtyListed:      s.q  || 0,
-      marketPrice:    s.m  || 0,
-      tcgListedPrice: s.l  || 0,
-      lastUpdated:    s.u  || '',
-      priceHistory:   (s.h||[]).map(p=>({date:p.d,price:p.p,qty:p.q,totalValue:p.v})),
+      name:           isCompact ? (s.n||'') : (s.name||''),
+      tcgId:          isCompact ? (s.t||null) : (s.tcgId||null),
+      set:            isCompact ? (s.e||'') : (s.set||''),
+      rarity:         isCompact ? (s.r||'') : (s.rarity||''),
+      condition:      isCompact ? (s.c||'NM') : (s.condition||'NM'),
+      qtyListed:      isCompact ? (s.q||0) : (s.qtyListed||s.qtyOnHand||0),
+      marketPrice:    isCompact ? (s.m||0) : (s.marketPrice||0),
+      tcgListedPrice: isCompact ? (s.l||0) : (s.tcgListedPrice||0),
+      lastUpdated:    isCompact ? (s.u||'') : (s.lastUpdated||''),
+      // Handle both old verbose priceHistory and new compact format
+      priceHistory: ((isCompact ? s.h : s.priceHistory) || []).map(p => ({
+        date:       p.date || p.d || '',
+        price:      p.price != null ? p.price : (p.p||0),
+        qty:        p.qty  != null ? p.qty   : (p.q||0),
+        totalValue: p.totalValue != null ? p.totalValue : (p.v||0),
+      })),
     };
   });
 }
@@ -3543,9 +3548,9 @@ document.getElementById('rel-name').addEventListener('keydown',e=>{if(e.key==='E
 // Clean any dirty rarity values and decimal quantities already in storage before first render
 cleanExistingRarities();
 cleanExistingQtys();
-// Emergency cleanup — purge zeroed cards and rewrite singles in compact format immediately
-const _purgCount = singles.filter(s=>s.qtyListed===0).length;
-if (_purgCount > 0) { singles = singles.filter(s=>s.qtyListed>0); save(); }
+// Purge zeroed cards and force compact rewrite of all existing singles data immediately
+singles = singles.filter(s => s.qtyListed > 0);
+localStorage.setItem('tcg_singles', JSON.stringify(compactSingles(singles)));
 updateStorageGauge();
 
 renderReleases();
