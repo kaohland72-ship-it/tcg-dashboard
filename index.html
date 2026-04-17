@@ -325,6 +325,10 @@ tr:hover td{background:rgba(255,255,255,.018)}
 .btn-import-data{background:rgba(167,139,250,.15);color:var(--accent4);border:1px solid rgba(167,139,250,.3);padding:5px 14px;border-radius:6px;font-size:11px;cursor:pointer;font-family:'DM Mono',monospace;transition:all .15s}
 .btn-import-data:hover{background:rgba(167,139,250,.28)}
 .data-toolbar-info{font-size:9.5px;color:var(--muted);margin-left:auto}
+.storage-gauge{display:flex;align-items:center;gap:7px;margin-left:auto}
+.storage-bar-track{width:80px;height:7px;background:var(--border);border-radius:4px;overflow:hidden;flex-shrink:0}
+.storage-bar-fill{height:100%;border-radius:4px;transition:width .4s,background .4s}
+.storage-label{font-size:9.5px;color:var(--muted);font-family:'DM Mono',monospace;white-space:nowrap}
 /* ── PRICE SNAPSHOT LOG ── */
 .snap-section{margin-top:22px;border-top:1px solid var(--border);padding-top:18px}
 .snap-card-picker{display:flex;gap:10px;align-items:end;margin-bottom:16px;flex-wrap:wrap}
@@ -423,6 +427,10 @@ tr:hover td{background:rgba(255,255,255,.018)}
     <input type="file" accept=".json" id="import-json-input" onchange="importAllData(event)" style="display:none"/>
   </label>
   <span class="data-toolbar-info" id="data-toolbar-info">All data stored locally in your browser</span>
+  <div class="storage-gauge" title="localStorage usage estimate">
+    <div class="storage-bar-track"><div class="storage-bar-fill" id="storage-bar-fill" style="width:0%;background:var(--sale)"></div></div>
+    <span class="storage-label" id="storage-label">— / 5MB</span>
+  </div>
 </div>
 
 <!-- ══════════════ DASHBOARD ══════════════ -->
@@ -708,7 +716,7 @@ tr:hover td{background:rgba(255,255,255,.018)}
 
     <!-- KPIs -->
     <div class="cards c4g" style="margin-bottom:22px">
-      <div class="card hl-tcg"><div class="lbl">Singles SKUs</div><div class="val" id="sk-count" style="color:var(--tcg)">0</div><div class="sub" id="sk-qty-sub">0 total qty</div></div>
+      <div class="card hl-tcg"><div class="lbl">Singles SKUs</div><div class="val" id="sk-count" style="color:var(--tcg)">0</div><div class="sub" id="sk-qty-sub">0 total qty listed</div></div>
       <div class="card"><div class="lbl">Total Qty Listed</div><div class="val" id="sk-listed" style="color:var(--accent4)">0</div><div class="sub" id="sk-listed-sub">across all SKUs</div></div>
       <div class="card"><div class="lbl">Est. Market Value</div><div class="val" id="sk-mkt-val" style="color:var(--sale)">$0.00</div><div class="sub">qty × market price</div></div>
       <div class="card hl"><div class="lbl">Last Import</div><div class="val" id="sk-import-date" style="font-size:13px">—</div><div class="sub" id="sk-import-sub">no imports yet</div></div>
@@ -748,7 +756,7 @@ tr:hover td{background:rgba(255,255,255,.018)}
         </div>
       </div>
       <div class="preview-scroll">
-        <table><thead><tr><th>Status</th><th>Card Name</th><th>TCGPlayer ID</th><th>Set</th><th>Condition</th><th>Qty</th><th>Market Price</th></tr></thead>
+        <table><thead><tr><th>Status</th><th>Card Name</th><th>TCGPlayer ID</th><th>Set</th><th>Condition</th><th>Qty Listed</th><th>Market Price</th></tr></thead>
         <tbody id="preview-body"></tbody></table>
       </div>
     </div>
@@ -822,7 +830,7 @@ tr:hover td{background:rgba(255,255,255,.018)}
       <table>
         <thead><tr>
           <th>Card Name</th><th>TCGPlayer ID</th><th>Set</th><th>Rarity</th><th>Condition</th>
-          <th>Qty on Hand</th><th>Qty Listed</th><th>Market Price</th><th>Listed Price</th><th>Market Value</th><th>Last Updated</th>
+          <th>Qty Listed</th><th>Market Price</th><th>Listed Price</th><th>Market Value</th><th>Last Updated</th>
         </tr></thead>
         <tbody id="singles-body"></tbody>
       </table>
@@ -1077,8 +1085,8 @@ let tasks   = JSON.parse(localStorage.getItem('tcg_tasks')   || '[]');
 let lots    = JSON.parse(localStorage.getItem('tcg_lots')    || '[]');
 let sales   = JSON.parse(localStorage.getItem('tcg_sales')   || '[]');
 let breaks  = JSON.parse(localStorage.getItem('tcg_breaks')  || '[]');
-// singles: { id, name, tcgId, set, rarity, condition, qtyOnHand, qtyListed, marketPrice, tcgListedPrice, lastUpdated, priceHistory:[{date,price,qty,totalValue}] }
-let singles = JSON.parse(localStorage.getItem('tcg_singles') || '[]');
+// singles: { id, name, tcgId, set, rarity, condition, qtyListed, marketPrice, tcgListedPrice, lastUpdated, priceHistory:[{date,price,qty,totalValue}] }
+let singles = expandSingles(JSON.parse(localStorage.getItem('tcg_singles') || '[]'));
 let imports = JSON.parse(localStorage.getItem('tcg_imports') || '[]'); // import history
 
 let selectedDate  = new Date();
@@ -1109,7 +1117,7 @@ const save     = () => {
   localStorage.setItem('tcg_lots',    JSON.stringify(lots));
   localStorage.setItem('tcg_sales',   JSON.stringify(sales));
   localStorage.setItem('tcg_breaks',  JSON.stringify(breaks));
-  localStorage.setItem('tcg_singles', JSON.stringify(singles));
+  localStorage.setItem('tcg_singles', JSON.stringify(compactSingles(singles)));
   localStorage.setItem('tcg_imports', JSON.stringify(imports));
   localStorage.setItem('tcg_releases',JSON.stringify(releases));
   localStorage.setItem('tcg_sku_meta',JSON.stringify(skuMeta));
@@ -1411,8 +1419,7 @@ const FIELD_ALIASES = {
   set:            ['set name','set','expansion','series','set_name'],
   rarity:         ['rarity','card rarity','rarity name','printing','foiling'],
   condition:      ['condition','cond','grade','quality'],
-  qtyOnHand:      ['quantity','qty','qty on hand','on hand','quantity on hand','total qty','stock','add to quantity'],
-  qtyListed:      ['qty listed','listed qty','quantity listed','listed','qty for sale','quantity for sale'],
+  qtyListed:      ['qty listed','listed qty','quantity listed','listed','qty for sale','quantity for sale','quantity','qty','qty on hand','on hand','quantity on hand','total qty','stock','add to quantity'],
   marketPrice:    ['market price','price','tcg market price','market','tcg price','low price','mid price','unit price'],
   tcgListedPrice: ['my price','listed price','tcg listed price','sell price','selling price','store price','listed at','my listed price','tcgplayer listed price'],
 };
@@ -1449,7 +1456,6 @@ function processCSV(text, filename) {
     { key:'set',            label:'Set / Expansion',       required:false },
     { key:'rarity',         label:'Rarity',                required:false },
     { key:'condition',      label:'Condition',             required:false },
-    { key:'qtyOnHand',      label:'Qty on Hand',           required:false },
     { key:'qtyListed',      label:'Qty Listed',            required:false },
     { key:'marketPrice',    label:'Market Price ($)',       required:false },
     { key:'tcgListedPrice', label:'My Listed Price ($)',    required:false },
@@ -1481,7 +1487,7 @@ function backToMapper() {
 // CSV IMPORT — PREVIEW
 // ══════════════════════════════════════════════════════════════
 function previewImport() {
-  const KEYS = ['name','tcgId','set','rarity','condition','qtyOnHand','qtyListed','marketPrice','tcgListedPrice'];
+  const KEYS = ['name','tcgId','set','rarity','condition','qtyListed','marketPrice','tcgListedPrice'];
   KEYS.forEach(k => { const el = document.getElementById('map-'+k); if(el) csvMapped[k] = el.value || null; });
 
   if (!csvMapped.name) { alert('Card Name column is required.'); return; }
@@ -1508,14 +1514,13 @@ function previewImport() {
     const rarity          = normalizeRarity(getCol(row, 'rarity'));
     const rawCond         = getCol(row, 'condition');
     const condition       = normalizeCondition(rawCond) || rawCond || 'NM';
-    const qtyOnHand       = Math.round(parseFloat(getCol(row, 'qtyOnHand'))  || 0);
     const qtyListed       = Math.round(parseFloat(getCol(row, 'qtyListed'))  || 0);
     const marketPrice     = parseFloat(getCol(row, 'marketPrice').replace(/[^0-9.]/g,'')) || 0;
     const tcgListedPrice  = parseFloat(getCol(row, 'tcgListedPrice').replace(/[^0-9.]/g,'')) || 0;
 
     const existing = (tcgId && byTcgId[tcgId]) || byName[name.toLowerCase().trim()];
     const status = existing ? 'update' : 'new';
-    return { name, tcgId, set, rarity, condition, qtyOnHand, qtyListed, marketPrice, tcgListedPrice, status, existingId: existing?.id || null };
+    return { name, tcgId, set, rarity, condition, qtyListed, marketPrice, tcgListedPrice, status, existingId: existing?.id || null };
   }).filter(Boolean);
 
   const newCount    = previewData.filter(r=>r.status==='new').length;
@@ -1530,7 +1535,7 @@ function previewImport() {
       <td style="color:var(--muted)">${r.tcgId||'—'}</td>
       <td style="color:var(--muted)">${r.set||'—'}</td>
       <td>${r.condition}</td>
-      <td>${r.qtyOnHand}</td>
+      <td>${r.qtyListed}</td>
       <td style="color:var(--sale)">${r.marketPrice>0?fmt$(r.marketPrice):'—'}</td>
     </tr>`).join('');
 
@@ -1624,63 +1629,175 @@ function cleanExistingRarities() {
   if (changed) save();
 }
 
-// Retroactively fix any decimal quantities already in localStorage
+// Retroactively fix any decimal quantities and migrate qtyOnHand → qtyListed
 function cleanExistingQtys() {
   let changed = false;
   singles = singles.map(s => {
-    const qtyOnHand = Math.round(s.qtyOnHand || 0);
-    const qtyListed = Math.round(s.qtyListed || 0);
-    if (qtyOnHand !== s.qtyOnHand || qtyListed !== s.qtyListed) {
+    // Migrate old qtyOnHand field into qtyListed if present
+    let qty = s.qtyListed;
+    if (s.qtyOnHand !== undefined) {
+      qty = Math.round(s.qtyOnHand || 0);
       changed = true;
-      return { ...s, qtyOnHand, qtyListed };
+    } else {
+      qty = Math.round(s.qtyListed || 0);
     }
-    return s;
+    if (qty !== s.qtyListed || s.qtyOnHand !== undefined) changed = true;
+    const out = { ...s, qtyListed: qty };
+    delete out.qtyOnHand;
+    return out;
   });
   if (changed) save();
 }
 
-// ══════════════════════════════════════════════════════════════
-// CSV IMPORT — CONFIRM
-// ══════════════════════════════════════════════════════════════
+// Strip null/empty/zero fields from singles before saving to minimise storage footprint
+function compactSingles(arr) {
+  return arr.map(s => {
+    const out = { id:s.id, n:s.name, q:s.qtyListed, u:s.lastUpdated };
+    if (s.tcgId)          out.t = s.tcgId;
+    if (s.set)            out.e = s.set;
+    if (s.rarity)         out.r = s.rarity;
+    if (s.condition && s.condition !== 'NM') out.c = s.condition;
+    if (s.marketPrice)    out.m = s.marketPrice;
+    if (s.tcgListedPrice) out.l = s.tcgListedPrice;
+    if (s.priceHistory?.length) out.h = s.priceHistory.map(p=>({d:p.date,p:p.price,q:p.qty,v:p.totalValue}));
+    return out;
+  });
+}
+
+// Expand compacted singles back to full field names for use in the app
+function expandSingles(arr) {
+  return arr.map(s => {
+    // Handle both old verbose format and new compact format
+    if (s.name !== undefined) return s; // already verbose — old format
+    return {
+      id:             s.id,
+      name:           s.n  || '',
+      tcgId:          s.t  || null,
+      set:            s.e  || '',
+      rarity:         s.r  || '',
+      condition:      s.c  || 'NM',
+      qtyListed:      s.q  || 0,
+      marketPrice:    s.m  || 0,
+      tcgListedPrice: s.l  || 0,
+      lastUpdated:    s.u  || '',
+      priceHistory:   (s.h||[]).map(p=>({date:p.d,price:p.p,qty:p.q,totalValue:p.v})),
+    };
+  });
+}
+const SNAP_LIMIT      = 52;  // max price snapshots kept per card (1 year of weekly imports)
+const ZEROED_TTL_DAYS = 90;  // days before a zero-qty card is purged from storage
+
+// Cap each card's priceHistory to the most recent SNAP_LIMIT snapshots
+function pruneSnapshots() {
+  let changed = false;
+  singles = singles.map(s => {
+    if (!s.priceHistory || s.priceHistory.length <= SNAP_LIMIT) return s;
+    changed = true;
+    return { ...s, priceHistory: s.priceHistory.slice(-SNAP_LIMIT) };
+  });
+  if (changed) save();
+}
+
+// Remove ALL zero-qty cards immediately — they are redundant with full-replace imports
+function purgeZeroedCards() {
+  const before = singles.length;
+  singles = singles.filter(s => s.qtyListed > 0);
+  if (singles.length !== before) save();
+  return before - singles.length;
+}
+
+// Calculate localStorage usage and update the gauge in the toolbar
+function updateStorageGauge() {
+  try {
+    let total = 0;
+    for (const key of Object.keys(localStorage)) {
+      total += (localStorage.getItem(key) || '').length * 2; // UTF-16: 2 bytes per char
+    }
+    const LIMIT   = 5 * 1024 * 1024; // 5MB conservative limit
+    const pct     = Math.min(100, Math.round((total / LIMIT) * 100));
+    const usedKB  = (total / 1024).toFixed(0);
+    const usedMB  = (total / (1024*1024)).toFixed(2);
+    const color   = pct >= 80 ? 'var(--accent3)' : pct >= 60 ? 'var(--accent)' : 'var(--sale)';
+    const fill    = document.getElementById('storage-bar-fill');
+    const label   = document.getElementById('storage-label');
+    if (fill)  { fill.style.width = pct+'%'; fill.style.background = color; }
+    if (label) {
+      label.textContent = `${usedKB < 1024 ? usedKB+'KB' : usedMB+'MB'} / 5MB`;
+      label.style.color = pct >= 80 ? 'var(--accent3)' : pct >= 60 ? 'var(--accent)' : 'var(--muted)';
+      label.title = `${pct}% of localStorage used · ${singles.length} singles · ${singles.reduce((s,x)=>s+(x.priceHistory?.length||0),0)} price snapshots`;
+    }
+    // Warn if getting tight
+    if (pct >= 80) {
+      const info = document.getElementById('data-toolbar-info');
+      if (info) { info.textContent = `⚠ Storage ${pct}% full — export a backup and consider Supabase migration`; info.style.color='var(--accent3)'; }
+    }
+  } catch(e) {}
+}
 function confirmImport() {
   if (!previewData.length) return;
   const now = todayIso();
-  let added = 0, updated = 0;
-  previewData.forEach(r => {
-    if (r.status === 'update' && r.existingId) {
-      singles = singles.map(s => {
-        if (s.id !== r.existingId) return s;
-        const updated = { ...s, name:r.name, tcgId:r.tcgId||s.tcgId, set:r.set||s.set,
-          rarity:r.rarity||s.rarity, condition:r.condition,
-          qtyOnHand:r.qtyOnHand, qtyListed:r.qtyListed,
-          marketPrice:r.marketPrice, tcgListedPrice:r.tcgListedPrice||s.tcgListedPrice,
-          lastUpdated:now };
-        // Record snapshot if price is set
-        if (r.marketPrice > 0) {
-          if (!updated.priceHistory) updated.priceHistory = [];
-          const existing = updated.priceHistory.findIndex(p => p.date === now);
-          const snap = { date:now, price:r.marketPrice, qty:r.qtyOnHand, totalValue:r.marketPrice*r.qtyOnHand };
-          if (existing >= 0) updated.priceHistory[existing] = snap;
-          else updated.priceHistory.push(snap);
-        }
-        return updated;
-      });
-      updated++;
-    } else {
-      const priceHistory = r.marketPrice > 0
-        ? [{ date:now, price:r.marketPrice, qty:r.qtyOnHand, totalValue:r.marketPrice*r.qtyOnHand }]
-        : [];
-      singles.push({ id: Date.now()+Math.random(), name:r.name, tcgId:r.tcgId, set:r.set,
-        rarity:r.rarity, condition:r.condition,
-        qtyOnHand:r.qtyOnHand, qtyListed:r.qtyListed,
-        marketPrice:r.marketPrice, tcgListedPrice:r.tcgListedPrice,
-        lastUpdated:now, priceHistory });
-      added++;
-    }
+
+  // Build lookup of existing singles so we can preserve price history and IDs
+  const byTcgId = {};
+  const byName  = {};
+  singles.forEach(s => {
+    if (s.tcgId) byTcgId[s.tcgId.trim()] = s;
+    byName[s.name.toLowerCase().trim()] = s;
   });
 
-  imports.push({ date: now, added, updated, total: previewData.length });
+  // Track which existing IDs are present in this import
+  const seenIds = new Set();
+
+  // Build the new singles list from the CSV — this is now the full source of truth
+  const newSingles = previewData.map(r => {
+    const existing = (r.tcgId && byTcgId[r.tcgId]) || byName[r.name.toLowerCase().trim()];
+    const id = existing ? existing.id : Date.now() + Math.random();
+    if (existing) seenIds.add(existing.id);
+
+    // Preserve existing price history — only add new snapshot if price changed or no history yet
+    let priceHistory = existing?.priceHistory ? [...existing.priceHistory] : [];
+    if (r.marketPrice > 0) {
+      const lastSnap = priceHistory[priceHistory.length - 1];
+      const priceChanged = !lastSnap || lastSnap.price !== r.marketPrice;
+      if (priceChanged) {
+        const snapIdx = priceHistory.findIndex(p => p.date === now);
+        const snap = { date:now, price:r.marketPrice, qty:r.qtyListed, totalValue:r.marketPrice * r.qtyListed };
+        if (snapIdx >= 0) priceHistory[snapIdx] = snap;
+        else priceHistory.push(snap);
+      } else if (lastSnap && lastSnap.date === now) {
+        // Same price, same day — just update qty in place
+        priceHistory[priceHistory.length - 1] = { ...lastSnap, qty:r.qtyListed, totalValue:r.marketPrice * r.qtyListed };
+      }
+    }
+
+    return {
+      id,
+      name:           r.name,
+      tcgId:          r.tcgId          || existing?.tcgId          || null,
+      set:            r.set            || existing?.set            || '',
+      rarity:         r.rarity         || existing?.rarity         || '',
+      condition:      r.condition      || existing?.condition      || 'NM',
+      qtyListed:      r.qtyListed,
+      marketPrice:    r.marketPrice    || existing?.marketPrice    || 0,
+      tcgListedPrice: r.tcgListedPrice || existing?.tcgListedPrice || 0,
+      lastUpdated:    now,
+      priceHistory,
+    };
+  });
+
+  // Full replace — CSV is the complete source of truth
+  singles = newSingles;
+
+  // ── Storage safeguards ──
+  pruneSnapshots();                    // cap price history at SNAP_LIMIT per card
+  const purged = purgeZeroedCards();   // remove all zero-qty cards immediately
+
+  const added   = previewData.filter(r => !((r.tcgId && byTcgId[r.tcgId]) || byName[r.name.toLowerCase().trim()])).length;
+  const updated = previewData.length - added;
+
+  imports.push({ date:now, added, updated, purged, total:previewData.length });
   save();
+  updateStorageGauge();
   resetImport();
   renderSingles();
   renderSinglesKPIs();
@@ -1688,7 +1805,8 @@ function confirmImport() {
   renderSinglesCharts();
   renderSnapUI();
   updateHeader();
-  alert(`✓ Import complete: ${added} new SKUs added, ${updated} updated.`);
+  const purgedNote = purged > 0 ? ` · ${purged} removed (not in export)` : '';
+  alert(`✓ Import complete: ${added} new · ${updated} updated · ${singles.reduce((s,x)=>s+(x.priceHistory?.length||0),0)} snapshots stored${purgedNote}.`);
 }
 
 function resetImport() {
@@ -1724,7 +1842,7 @@ function setSinglesFilter(f, btn) {
 function renderSingles() {
   const search = (document.getElementById('sk-search').value||'').toLowerCase();
   let filtered = [...singles];
-  if (singlesFilter==='in-stock')  filtered = filtered.filter(s=>s.qtyOnHand>0);
+  if (singlesFilter==='in-stock')  filtered = filtered.filter(s=>s.qtyListed>0);
   if (singlesFilter==='no-price')  filtered = filtered.filter(s=>!s.marketPrice||s.marketPrice===0);
   if (search) filtered = filtered.filter(s=>(s.name+' '+(s.tcgId||'')+' '+(s.set||'')).toLowerCase().includes(search));
   filtered.sort((a,b)=>a.name.localeCompare(b.name));
@@ -1737,7 +1855,7 @@ function renderSingles() {
     return;
   }
   tbody.innerHTML = filtered.map(s => {
-    const mktVal = s.qtyOnHand * s.marketPrice;
+    const mktVal = s.qtyListed * s.marketPrice;
     const tcgUrl = s.tcgId ? `https://www.tcgplayer.com/product/${s.tcgId}` : '';
     const condColor = {NM:'var(--sale)',LP:'var(--text)',MP:'var(--accent)',HP:'var(--accent3)',DMG:'var(--accent3)'}[s.condition]||'var(--text)';
     const listedDelta = (s.tcgListedPrice>0 && s.marketPrice>0) ? s.tcgListedPrice - s.marketPrice : null;
@@ -1750,8 +1868,7 @@ function renderSingles() {
       <td style="color:var(--muted);white-space:nowrap">${s.set||'—'}</td>
       <td style="color:var(--muted)">${s.rarity||'—'}</td>
       <td style="color:${condColor}">${s.condition||'—'}</td>
-      <td><span class="qty-b ${s.qtyOnHand===0?'zero':''}">${s.qtyOnHand}</span></td>
-      <td style="color:var(--accent4)">${s.qtyListed||0}</td>
+      <td><span class="qty-b ${s.qtyListed===0?'zero':''}">${s.qtyListed}</span></td>
       <td style="color:var(--sale)">${s.marketPrice>0?fmt$(s.marketPrice):'<span style="color:var(--muted)">—</span>'}</td>
       <td>${listedCell}</td>
       <td style="color:var(--sale)">${mktVal>0?fmt$(mktVal):'<span style="color:var(--muted)">—</span>'}</td>
@@ -1762,12 +1879,12 @@ function renderSingles() {
 
 function renderSinglesKPIs() {
   const total      = singles.length;
-  const totalQty   = singles.reduce((s,x)=>s+x.qtyOnHand,0);
+  const totalQty   = singles.reduce((s,x)=>s+x.qtyListed,0);
   const totalListed= singles.reduce((s,x)=>s+(x.qtyListed||0),0);
-  const mktVal     = singles.reduce((s,x)=>s+(x.qtyOnHand*x.marketPrice),0);
+  const mktVal     = singles.reduce((s,x)=>s+(x.qtyListed*x.marketPrice),0);
   const lastImport = imports.length ? imports[imports.length-1] : null;
   document.getElementById('sk-count').textContent    = total;
-  document.getElementById('sk-qty-sub').textContent  = `${totalQty} total qty on hand`;
+  document.getElementById('sk-qty-sub').textContent  = `${totalQty} total qty listed`;
   document.getElementById('sk-listed').textContent   = totalListed;
   document.getElementById('sk-listed-sub').textContent = `across ${singles.filter(s=>s.qtyListed>0).length} SKUs`;
   document.getElementById('sk-mkt-val').textContent  = fmt$(mktVal);
@@ -1781,7 +1898,7 @@ function renderImportHistory() {
   el.style.display='block';
   const recent = [...imports].reverse().slice(0,5);
   el.innerHTML = '<strong>Import History</strong> &nbsp;·&nbsp; ' +
-    recent.map(i=>`${fmtDate(i.date)}: <strong>${i.total}</strong> rows (${i.added} new, ${i.updated} updated)`).join(' &nbsp;·&nbsp; ');
+    recent.map(i=>`${fmtDate(i.date)}: <strong>${i.total}</strong> rows (${i.added} new · ${i.updated} updated${i.zeroed?` · ${i.zeroed} zeroed`:''}${i.purged?` · ${i.purged} purged`:''} )`).join(' &nbsp;·&nbsp; ');
 }
 
 function clearAllSingles() {
@@ -1847,10 +1964,51 @@ function renderSkChartExpansion() {
   singles.forEach(s => {
     const key = s.set || 'Unknown';
     if (!groups[key]) groups[key] = { qty: 0, value: 0 };
-    groups[key].qty   += s.qtyOnHand;
-    groups[key].value += s.qtyOnHand * (s.marketPrice || 0);
+    groups[key].qty   += s.qtyListed;
+    groups[key].value += s.qtyListed * (s.marketPrice || 0);
   });
-  renderSkHBar('sk-chart-expansion', groups, mode, 'var(--tcg)');
+
+  // Sort all entries by the active mode descending
+  const allEntries = Object.entries(groups).sort((a, b) => b[1][mode] - a[1][mode]);
+
+  // Cap at top 25 — bucket the rest into "All Other Expansions"
+  const TOP = 25;
+  let displayEntries = allEntries;
+  if (allEntries.length > TOP) {
+    const top     = allEntries.slice(0, TOP);
+    const rest    = allEntries.slice(TOP);
+    const otherQty   = rest.reduce((s, [, v]) => s + v.qty,   0);
+    const otherValue = rest.reduce((s, [, v]) => s + v.value, 0);
+    displayEntries = [...top, ['All Other Expansions', { qty: otherQty, value: otherValue }]];
+  }
+
+  const container = document.getElementById('sk-chart-expansion');
+  if (!displayEntries.length) {
+    container.innerHTML = '<div class="empty-state" style="padding:18px;text-align:center">No singles data yet. Import a CSV to populate charts.</div>';
+    return;
+  }
+
+  const maxVal  = Math.max(...displayEntries.map(([, v]) => v[mode])) || 1;
+  const palette = ['var(--tcg)','var(--sale)','var(--accent)','var(--accent4)','var(--purchase)','var(--break)','var(--listing)'];
+  container.innerHTML = displayEntries.map(([label, data], i) => {
+    const val     = data[mode];
+    const pct     = Math.max(2, Math.round((val / maxVal) * 100));
+    const display = mode === 'value' ? fmt$(val) : val.toLocaleString();
+    const sub     = mode === 'value' ? `${data.qty.toLocaleString()} cards` : `${fmt$(data.value)} value`;
+    const isOther = label === 'All Other Expansions';
+    const color   = isOther ? 'var(--muted)' : palette[i % palette.length];
+    return `<div class="hbar-row">
+      <div class="hbar-label" title="${label}" style="${isOther?'color:var(--muted);font-style:italic':''}">${label}</div>
+      <div class="hbar-track">
+        <div class="hbar-fill" style="width:${pct}%;background:${color};opacity:${isOther?.5:.8}"></div>
+      </div>
+      <div>
+        <div class="hbar-val" style="${isOther?'color:var(--muted)':''}">${display}</div>
+        <div class="hbar-qty">${sub}${isOther?` · ${allEntries.length - TOP} sets`:''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ── Chart 2: By Rarity ──
@@ -1860,8 +2018,8 @@ function renderSkChartRarity() {
   singles.forEach(s => {
     const key = s.rarity || 'Unknown';
     if (!groups[key]) groups[key] = { qty: 0, value: 0 };
-    groups[key].qty   += s.qtyOnHand;
-    groups[key].value += s.qtyOnHand * (s.marketPrice || 0);
+    groups[key].qty   += s.qtyListed;
+    groups[key].value += s.qtyListed * (s.marketPrice || 0);
   });
 
   const container = document.getElementById('sk-chart-rarity');
@@ -1941,7 +2099,7 @@ function renderSkPriceChart() {
 
   // Only cards that have BOTH a market price AND a listed price
   let pool = singles.filter(s => s.marketPrice > 0 && s.tcgListedPrice > 0);
-  if (inStockOnly) pool = pool.filter(s => s.qtyOnHand > 0);
+  if (inStockOnly) pool = pool.filter(s => s.qtyListed > 0);
   if (search)      pool = pool.filter(s => (s.name + ' ' + (s.set || '')).toLowerCase().includes(search));
 
   if (!pool.length) {
@@ -1957,8 +2115,8 @@ function renderSkPriceChart() {
   const rows = pool.map(s => {
     const delta     = s.tcgListedPrice - s.marketPrice;
     const deltaPct  = s.marketPrice > 0 ? (delta / s.marketPrice) * 100 : 0;
-    const mktValue  = s.qtyOnHand * s.marketPrice;
-    const listValue = s.qtyOnHand * s.tcgListedPrice;
+    const mktValue  = s.qtyListed * s.marketPrice;
+    const listValue = s.qtyListed * s.tcgListedPrice;
     return { ...s, delta, deltaPct, mktValue, listValue };
   });
 
@@ -1999,7 +2157,7 @@ function renderSkPriceChart() {
         <div style="font-size:9.5px;color:var(--muted);margin-top:2px;display:flex;gap:6px;flex-wrap:wrap">
           ${r.set ? `<span>${r.set}</span>` : ''}
           ${r.rarity ? `<span style="color:${rarityColor(r.rarity)}">${r.rarity}</span>` : ''}
-          ${r.qtyOnHand > 0 ? `<span style="color:var(--accent4)">×${r.qtyOnHand}</span>` : '<span style="color:var(--muted)">out of stock</span>'}
+          ${r.qtyListed > 0 ? `<span style="color:var(--accent4)">×${r.qtyListed}</span>` : '<span style="color:var(--muted)">out of stock</span>'}
         </div>
       </div>
 
@@ -2025,7 +2183,7 @@ function renderSkPriceChart() {
       <div style="text-align:right">
         <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:${deltaColor}">${sign}${fmt$(r.delta)}</div>
         <div style="font-size:9.5px;color:${deltaColor};opacity:.8">${sign}${r.deltaPct.toFixed(1)}%</div>
-        ${r.qtyOnHand > 0 ? `<div style="font-size:9px;color:var(--muted);margin-top:2px">${sign}${fmt$(r.delta * r.qtyOnHand)} total</div>` : ''}
+        ${r.qtyListed > 0 ? `<div style="font-size:9px;color:var(--muted);margin-top:2px">${sign}${fmt$(r.delta * r.qtyListed)} total</div>` : ''}
       </div>
 
     </div>`;
@@ -2050,7 +2208,7 @@ function renderSkPriceChart() {
 function updateHeader() {
   const sealedSkus = new Set(lots.filter(l=>l.qtyRemaining>0).map(l=>l.sku));
   const singlesCount = singles.length;
-  const mktVal = singles.reduce((s,x)=>s+(x.qtyOnHand*x.marketPrice),0);
+  const mktVal = singles.reduce((s,x)=>s+(x.qtyListed*x.marketPrice),0);
   const gp = sales.reduce((s,s2)=>s+s2.revenue-s2.cogs,0);
   document.getElementById('hdr-skus').textContent    = `${sealedSkus.size} Sealed SKU${sealedSkus.size!==1?'s':''}`;
   document.getElementById('hdr-singles').textContent = `${singlesCount} Singles SKU${singlesCount!==1?'s':''}`;
@@ -3039,10 +3197,11 @@ function renderChartProfit(){
 // ══════════════════════════════════════════════════════════════
 function exportAllData() {
   const payload = {
-    _version: 1,
+    _version: 2,
     _exported: new Date().toISOString(),
-    logs, tasks, lots, sales, breaks, singles, imports,
-    skuMeta, releases,
+    logs, tasks, lots, sales, breaks,
+    singles: singles, // already expanded in memory
+    imports, skuMeta, releases,
     soldCards:   JSON.parse(localStorage.getItem('tcg_sold')          || '[]'),
     soldImports: JSON.parse(localStorage.getItem('tcg_sold_imports')  || '[]'),
     revMonths:   JSON.parse(localStorage.getItem('tcg_rev_months')    || '[]'),
@@ -3057,6 +3216,7 @@ function exportAllData() {
   a.click();
   URL.revokeObjectURL(url);
   document.getElementById('data-toolbar-info').textContent = `Last export: ${fmtDate(todayIso())}`;
+  updateStorageGauge();
 }
 
 function importAllData(e) {
@@ -3096,6 +3256,7 @@ function importAllData(e) {
       renderReleases();
       renderChecklist();
       document.getElementById('data-toolbar-info').textContent = `Restored from ${fmtDate(d._exported?.slice(0,10)||todayIso())} · ${singles.length} singles · ${lots.length} lots`;
+      updateStorageGauge();
       alert('✓ Backup restored successfully. All data has been loaded.');
     } catch(ex) {
       alert('Failed to parse backup file. Make sure it is a valid TCGHQ JSON export.');
@@ -3134,13 +3295,52 @@ function populateSnapCardSel() {
   // Filter singles to those with price history
   let eligible = singles.filter(s => s.priceHistory?.length > 0);
   if (setFilter) eligible = eligible.filter(s => (s.set||'Unknown') === setFilter);
-  eligible.sort((a,b) => a.name.localeCompare(b.name));
+
+  // Deduplicate by name + set — merge price histories across duplicate records
+  const seen = {};
+  eligible.forEach(s => {
+    const key = (s.name + '||' + (s.set||'')).toLowerCase();
+    if (!seen[key]) {
+      // Clone the record with a merged history array
+      seen[key] = { ...s, priceHistory: [...(s.priceHistory||[])] };
+    } else {
+      // Merge snapshots — combine histories, de-dup by date (keep latest price for same date)
+      (s.priceHistory||[]).forEach(snap => {
+        const idx = seen[key].priceHistory.findIndex(p => p.date === snap.date);
+        if (idx >= 0) {
+          // Keep the snapshot with the higher qty as the more complete record
+          if (snap.qty > seen[key].priceHistory[idx].qty) seen[key].priceHistory[idx] = snap;
+        } else {
+          seen[key].priceHistory.push(snap);
+        }
+      });
+      seen[key].priceHistory.sort((a,b) => a.date.localeCompare(b.date));
+      // Use the most recently updated record's current price and qty
+      if ((s.lastUpdated||'') > (seen[key].lastUpdated||'')) {
+        seen[key].qtyListed    = s.qtyListed;
+        seen[key].marketPrice  = s.marketPrice;
+        seen[key].lastUpdated  = s.lastUpdated;
+      }
+    }
+  });
+
+  const deduped = Object.values(seen).sort((a,b) => a.name.localeCompare(b.name));
+
+  // Store merged entries on window so renderSnapChart can access them by key
+  window._snapEntries = {};
+  deduped.forEach(s => {
+    const key = (s.name + '||' + (s.set||'')).toLowerCase();
+    window._snapEntries[key] = s;
+  });
 
   const sel = document.getElementById('snap-card-sel');
   const prev = sel?.value || '';
   if (sel) {
     sel.innerHTML = '<option value="">— Select a card —</option>' +
-      eligible.map(s => `<option value="${s.id}"${s.id===prev?' selected':''}>${s.name}${s.set?' ('+s.set+')':''}</option>`).join('');
+      deduped.map(s => {
+        const key = (s.name + '||' + (s.set||'')).toLowerCase();
+        return `<option value="${key}"${key===prev?' selected':''}>${s.name}${s.set?' ('+s.set+')':''}</option>`;
+      }).join('');
   }
 
   // Also populate snap-log-set
@@ -3155,13 +3355,13 @@ function populateSnapCardSel() {
 // Render the per-card SVG line chart
 function renderSnapChart() {
   const box = document.getElementById('snap-chart-box');
-  const selId = document.getElementById('snap-card-sel')?.value;
-  if (!selId) {
+  const selKey = document.getElementById('snap-card-sel')?.value;
+  if (!selKey) {
     box.innerHTML = '<div class="snap-empty">Select a card above to view its price history over time.</div>';
     return;
   }
 
-  const card = singles.find(s => s.id == selId);
+  const card = window._snapEntries?.[selKey];
   if (!card || !card.priceHistory?.length) {
     box.innerHTML = '<div class="snap-empty">No price history recorded for this card yet.</div>';
     return;
@@ -3343,6 +3543,10 @@ document.getElementById('rel-name').addEventListener('keydown',e=>{if(e.key==='E
 // Clean any dirty rarity values and decimal quantities already in storage before first render
 cleanExistingRarities();
 cleanExistingQtys();
+// Emergency cleanup — purge zeroed cards and rewrite singles in compact format immediately
+const _purgCount = singles.filter(s=>s.qtyListed===0).length;
+if (_purgCount > 0) { singles = singles.filter(s=>s.qtyListed>0); save(); }
+updateStorageGauge();
 
 renderReleases();
 renderChecklist();
