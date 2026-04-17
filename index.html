@@ -3595,59 +3595,67 @@ function renderSnapUI() {
 // ── Push sealed inventory to Supabase ──
 async function sbPushSealed() {
   if (!sbReady()) return;
+  setSyncStatus('busy', 'Syncing…');
   try {
     const BATCH = 200;
 
     // ── Lots ──
-    await sbFetch('sealed_lots?qty_received=gte.0', { method:'DELETE' });
-    for (let i = 0; i < lots.length; i += BATCH) {
-      const batch = lots.slice(i, i+BATCH).map(l => ({
-        id:            String(l.id),
-        sku:           l.sku,
-        date:          l.date || null,
-        qty_received:  l.qtyReceived  || 0,
-        qty_remaining: l.qtyRemaining || 0,
-        unit_cost:     l.unitCost     || 0,
-      }));
-      await sbFetch('sealed_lots', { method:'POST', body:JSON.stringify(batch) });
+    // Delete using created_at filter which always matches all rows
+    await sbFetch('sealed_lots?created_at=gte.2000-01-01', { method:'DELETE' });
+    if (lots.length) {
+      for (let i = 0; i < lots.length; i += BATCH) {
+        const batch = lots.slice(i, i+BATCH).map(l => ({
+          id:            String(l.id),
+          sku:           l.sku,
+          date:          l.date || null,
+          qty_received:  l.qtyReceived  || 0,
+          qty_remaining: l.qtyRemaining || 0,
+          unit_cost:     l.unitCost     || 0,
+        }));
+        await sbFetch('sealed_lots', { method:'POST', body:JSON.stringify(batch) });
+      }
     }
 
     // ── Sales ──
-    await sbFetch('sealed_sales?qty=gte.0', { method:'DELETE' });
-    for (let i = 0; i < sales.length; i += BATCH) {
-      const batch = sales.slice(i, i+BATCH).map(s => ({
-        id:         String(s.id),
-        date:       s.date || null,
-        sku:        s.sku,
-        qty:        s.qty        || 0,
-        sale_price: s.salePrice  || 0,
-        revenue:    s.revenue    || 0,
-        cogs:       s.cogs       || 0,
-        breakdown:  s.breakdown  || [],
-      }));
-      await sbFetch('sealed_sales', { method:'POST', body:JSON.stringify(batch) });
+    await sbFetch('sealed_sales?created_at=gte.2000-01-01', { method:'DELETE' });
+    if (sales.length) {
+      for (let i = 0; i < sales.length; i += BATCH) {
+        const batch = sales.slice(i, i+BATCH).map(s => ({
+          id:         String(s.id),
+          date:       s.date || null,
+          sku:        s.sku,
+          qty:        s.qty        || 0,
+          sale_price: s.salePrice  || 0,
+          revenue:    s.revenue    || 0,
+          cogs:       s.cogs       || 0,
+          breakdown:  s.breakdown  || [],
+        }));
+        await sbFetch('sealed_sales', { method:'POST', body:JSON.stringify(batch) });
+      }
     }
 
     // ── Breaks ──
-    await sbFetch('sealed_breaks?qty=gte.0', { method:'DELETE' });
-    for (let i = 0; i < breaks.length; i += BATCH) {
-      const batch = breaks.slice(i, i+BATCH).map(b => ({
-        id:            String(b.id),
-        date:          b.date || null,
-        sku:           b.sku,
-        qty:           b.qty           || 0,
-        cogs:          b.cogs          || 0,
-        cost_per_unit: b.costPerUnit   || 0,
-        breakdown:     b.breakdown     || [],
-        notes:         b.notes        || null,
-      }));
-      await sbFetch('sealed_breaks', { method:'POST', body:JSON.stringify(batch) });
+    await sbFetch('sealed_breaks?created_at=gte.2000-01-01', { method:'DELETE' });
+    if (breaks.length) {
+      for (let i = 0; i < breaks.length; i += BATCH) {
+        const batch = breaks.slice(i, i+BATCH).map(b => ({
+          id:            String(b.id),
+          date:          b.date || null,
+          sku:           b.sku,
+          qty:           b.qty           || 0,
+          cogs:          b.cogs          || 0,
+          cost_per_unit: b.costPerUnit   || 0,
+          breakdown:     b.breakdown     || [],
+          notes:         b.notes         || null,
+        }));
+        await sbFetch('sealed_breaks', { method:'POST', body:JSON.stringify(batch) });
+      }
     }
 
     // ── SKU Meta ──
-    await sbFetch('sealed_sku_meta?sku=neq.', { method:'DELETE' });
+    await sbFetch('sealed_sku_meta?created_at=gte.2000-01-01', { method:'DELETE' });
     if (skuMeta.length) {
-      const batch = skuMeta.map(m => ({
+      const metaBatch = skuMeta.map(m => ({
         sku:           m.sku,
         game:          m.game          || null,
         expansion:     m.expansion     || null,
@@ -3655,8 +3663,8 @@ async function sbPushSealed() {
         market_price:  m.marketPrice   || 0,
         price_history: m.priceHistory  || [],
       }));
-      for (let i = 0; i < batch.length; i += BATCH) {
-        await sbFetch('sealed_sku_meta', { method:'POST', body:JSON.stringify(batch.slice(i,i+BATCH)) });
+      for (let i = 0; i < metaBatch.length; i += BATCH) {
+        await sbFetch('sealed_sku_meta', { method:'POST', body:JSON.stringify(metaBatch.slice(i,i+BATCH)) });
       }
     }
 
