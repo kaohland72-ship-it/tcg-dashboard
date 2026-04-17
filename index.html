@@ -3984,20 +3984,19 @@ async function sbPushAll() {
   try {
     const BATCH = 200;
 
-    // Deduplicate singles by ID in memory before pushing
+    // Deduplicate singles by ID — keep ALL cards including zero qty
     const seen = {};
     singles.forEach(s => {
       const key = String(s.id);
       if (!seen[key] || (s.lastUpdated||'') > (seen[key].lastUpdated||'')) seen[key] = s;
     });
-    const dedupedSingles = Object.values(seen).filter(s => s.qtyListed > 0);
+    const dedupedSingles = Object.values(seen);
 
     sbStatusMsg(`Clearing existing data…`, 'var(--muted)');
 
-    // Delete all existing singles rows using a filter that matches all rows
-    await sbFetch('singles?qty_listed=gte.0', { method:'DELETE' });
-    // Delete all price history
-    await sbFetch('price_history?qty=gte.0', { method:'DELETE' });
+    // Delete all existing rows — use created_at filter to match all rows
+    await sbFetch('singles?created_at=gte.2000-01-01', { method:'DELETE' });
+    await sbFetch('price_history?id=gte.0', { method:'DELETE' });
 
     sbStatusMsg(`Pushing ${dedupedSingles.length} cards in batches…`, 'var(--muted)');
 
