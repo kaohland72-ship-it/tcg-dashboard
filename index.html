@@ -1645,15 +1645,32 @@ function previewImport() {
     return idx >= 0 ? (row[idx] || '').trim() : '';
   };
 
-  // Build existing lookup by TCGPlayer ID then by name
-  const byTcgId = {};
-  const byName  = {};
+  // Build existing lookup by name+condition (primary) and tcgId+condition (secondary)
+  // Using name+condition prevents duplicate IDs when same card exists in multiple conditions
+  const byNameCond = {};
+  const byTcgIdCond = {};
   singles.forEach(s => {
-    if (s.tcgId) byTcgId[s.tcgId.trim()] = s;
-    byName[s.name.toLowerCase().trim()] = s;
+    const nameCond = (s.name.toLowerCase().trim() + '||' + (s.condition||'NM')).toLowerCase();
+    byNameCond[nameCond] = s;
+    if (s.tcgId) {
+      const tcgCond = (s.tcgId.trim() + '||' + (s.condition||'NM')).toLowerCase();
+      byTcgIdCond[tcgCond] = s;
+    }
   });
 
-  previewData = csvRows.map(row => {
+  // Deduplicate CSV rows by name+condition before processing
+  // TCGPlayer sometimes exports same card+condition twice
+  const csvDeduped = [];
+  const csvSeen = new Set();
+  csvRows.forEach(row => {
+    const name = getCol(row, 'name'); if (!name) return;
+    const rawCond = getCol(row, 'condition');
+    const condition = normalizeCondition(rawCond) || rawCond || 'NM';
+    const key = (name.toLowerCase().trim() + '||' + condition).toLowerCase();
+    if (!csvSeen.has(key)) { csvSeen.add(key); csvDeduped.push(row); }
+  });
+
+  previewData = csvDeduped.map(row => {
     const name  = getCol(row, 'name');
     if (!name) return null;
     const tcgId           = getCol(row, 'tcgId');
@@ -1665,8 +1682,11 @@ function previewImport() {
     const marketPrice     = parseFloat(getCol(row, 'marketPrice').replace(/[^0-9.]/g,'')) || 0;
     const tcgListedPrice  = parseFloat(getCol(row, 'tcgListedPrice').replace(/[^0-9.]/g,'')) || 0;
 
-    const existing = (tcgId && byTcgId[tcgId]) || byName[name.toLowerCase().trim()];
-    const status = existing ? 'update' : 'new';
+    // Look up existing record by name+condition first, then tcgId+condition
+    const nameCond  = (name.toLowerCase().trim() + '||' + condition).toLowerCase();
+    const tcgCond   = tcgId ? (tcgId.trim() + '||' + condition).toLowerCase() : null;
+    const existing  = byNameCond[nameCond] || (tcgCond && byTcgIdCond[tcgCond]);
+    const status    = existing ? 'update' : 'new';
     return { name, tcgId, set, rarity, condition, qtyListed, marketPrice, tcgListedPrice, status, existingId: existing?.id || null };
   }).filter(Boolean);
 
@@ -1889,12 +1909,13 @@ function confirmImport() {
   if (!previewData.length) return;
   const now = todayIso();
 
-  // Build lookup of existing singles so we can preserve price history and IDs
-  const byTcgId = {};
-  const byName  = {};
+  // Build lookup by name+condition — same logic as preview
+  const byNameCond2 = {};
+  const byTcgIdCond2 = {};
   singles.forEach(s => {
-    if (s.tcgId) byTcgId[s.tcgId.trim()] = s;
-    byName[s.name.toLowerCase().trim()] = s;
+    const nc = (s.name.toLowerCase().trim()+'||'+(s.condition||'NM')).toLowerCase();
+    byNameCond2[nc] = s;
+    if (s.tcgId) byTcgIdCond2[(s.tcgId.trim()+'||'+(s.condition||'NM')).toLowerCase()] = s;
   });
 
   // Track which existing IDs are present in this import
@@ -1902,7 +1923,9 @@ function confirmImport() {
 
   // Build the new singles list from the CSV — this is now the full source of truth
   const newSingles = previewData.map(r => {
-    const existing = (r.tcgId && byTcgId[r.tcgId]) || byName[r.name.toLowerCase().trim()];
+    const nc = (r.name.toLowerCase().trim()+'||'+(r.condition||'NM')).toLowerCase();
+    const tc = r.tcgId ? (r.tcgId.trim()+'||'+(r.condition||'NM')).toLowerCase() : null;
+    const existing = byNameCond2[nc] || (tc && byTcgIdCond2[tc]);
     const id = existing ? existing.id : Date.now() + Math.random();
     if (existing) seenIds.add(existing.id);
 
@@ -1944,7 +1967,11 @@ function confirmImport() {
   pruneSnapshots();                    // cap price history at SNAP_LIMIT per card
   const purged = purgeZeroedCards();   // remove all zero-qty cards immediately
 
-  const added   = previewData.filter(r => !((r.tcgId && byTcgId[r.tcgId]) || byName[r.name.toLowerCase().trim()])).length;
+  const added   = previewData.filter(r => {
+    const nc = (r.name.toLowerCase().trim()+'||'+(r.condition||'NM')).toLowerCase();
+    const tc = r.tcgId ? (r.tcgId.trim()+'||'+(r.condition||'NM')).toLowerCase() : null;
+    return !byNameCond2[nc] && !(tc && byTcgIdCond2[tc]);
+  }).length;
   const updated = previewData.length - added;
 
   imports.push({ date:now, added, updated, purged, total:previewData.length });
@@ -4126,39 +4153,53 @@ async function sbPullAll() {
 
 // ── Auto-sync to Supabase after every CSV import ──
 async function sbSyncAfterImport() {
-  if (!sbReady()) return; // silent no-op if not configured
+  if (!sbReady()) return;
   setSyncStatus('busy', 'Syncing…');
   try {
-    const BATCH = 500;
-    // Upsert current singles (don't delete first — merge on id)
-    for (let i = 0; i < singles.length; i += BATCH) {
-      const batch = singles.slice(i, i + BATCH).map(s => ({
+    const BATCH = 100;
+
+    // Deduplicate by name+condition before pushing
+    const seen = new Set();
+    const cleanSingles = singles.filter(s => {
+      const key = (s.name.toLowerCase().trim()+'||'+(s.condition||'NM')).toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    // Upsert current singles
+    for (let i = 0; i < cleanSingles.length; i += BATCH) {
+      const batch = cleanSingles.slice(i, i + BATCH).map(s => ({
         id: String(s.id), name:s.name, tcg_id:s.tcgId||null,
         set_name:s.set||null, rarity:s.rarity||null, condition:s.condition||'NM',
         qty_listed:s.qtyListed||0, market_price:s.marketPrice||0,
         listed_price:s.tcgListedPrice||0, last_updated:s.lastUpdated||null,
       }));
-      await sbFetch('singles', { method:'POST', prefer:'resolution=merge-duplicates', body:JSON.stringify(batch) });
+      await sbFetch('singles', { method:'POST',
+        headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},
+        body:JSON.stringify(batch) });
     }
-    // Delete rows no longer in inventory (full replace)
-    const activeIds = singles.map(s => String(s.id));
-    // Delete in chunks to avoid URL length limits
-    for (let i = 0; i < activeIds.length; i += 200) {
-      const chunk = activeIds.slice(i, i+200);
-      await sbFetch(`singles?id=not.in.(${chunk.join(',')})`, { method:'DELETE', prefer:'return=minimal' });
-    }
+
+    // Delete rows no longer in inventory
+    const activeIds = cleanSingles.map(s => `"${String(s.id)}"`).join(',');
+    if (activeIds) await sbFetch(`singles?id=not.in.(${activeIds})`, { method:'DELETE' });
+
     // Upsert new price snapshots
     const newSnaps = [];
-    singles.forEach(s => {
+    cleanSingles.forEach(s => {
       (s.priceHistory||[]).forEach(p => {
         newSnaps.push({ single_id:String(s.id), snap_date:p.date, price:p.price, qty:p.qty, total_value:p.totalValue });
       });
     });
     for (let i = 0; i < newSnaps.length; i += BATCH) {
-      await sbFetch('price_history', { method:'POST', prefer:'resolution=merge-duplicates', body:JSON.stringify(newSnaps.slice(i,i+BATCH)) });
+      await sbFetch('price_history', {
+        method:'POST',
+        headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},
+        body:JSON.stringify(newSnaps.slice(i,i+BATCH))
+      });
     }
+
     setSyncStatus('ok', 'Synced ' + fmtDate(todayIso()));
-    // Clear singles from localStorage now that Supabase has them
     try { localStorage.removeItem('tcg_singles'); } catch(e) {}
     updateStorageGauge();
   } catch(e) {
