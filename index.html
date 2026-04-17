@@ -477,10 +477,12 @@ tr:hover td{background:rgba(255,255,255,.018)}
     <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
       <div style="font-size:9.5px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">Sync Actions</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn btn-sm btn-outline" onclick="sbPushAll()" id="sb-push-btn" disabled>⬆ Push All to Supabase</button>
-        <button class="btn btn-sm btn-outline" onclick="sbPullAll()" id="sb-pull-btn" disabled>⬇ Pull from Supabase</button>
+        <button class="btn btn-sm btn-outline" onclick="sbPushAll()" id="sb-push-btn" disabled>⬆ Push Singles to Supabase</button>
+        <button class="btn btn-sm btn-outline" onclick="sbPullAll()" id="sb-pull-btn" disabled>⬇ Pull Singles from Supabase</button>
+        <button class="btn btn-sm btn-outline" onclick="sbPushSealed()" id="sb-push-sealed-btn" disabled>⬆ Push Sealed to Supabase</button>
+        <button class="btn btn-sm btn-outline" onclick="sbPullSealed()" id="sb-pull-sealed-btn" disabled>⬇ Pull Sealed from Supabase</button>
       </div>
-      <div style="font-size:9.5px;color:var(--muted);margin-top:8px">Push sends your current singles to Supabase. Pull loads singles from Supabase into this device.</div>
+      <div style="font-size:9.5px;color:var(--muted);margin-top:8px">Push sends your current data to Supabase. Pull loads data from Supabase into this device. Both happen automatically after every action.</div>
     </div>
   </div>
 </div>
@@ -1291,6 +1293,7 @@ function receiveInventory(){
   document.getElementById('buy-cost').value='';
   document.getElementById('buy-mktprice').value='';
   populateInvDropdowns(); renderInventory(); renderLots(); renderSkuMetaList(); renderInvCharts(); updateHeader();
+  sbPushSealed();
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -1325,6 +1328,7 @@ function confirmSale(){
   document.getElementById('sell-qty').value='1'; document.getElementById('sell-price').value=''; document.getElementById('sell-date').value=todayIso();
   document.getElementById('sell-preview').textContent='Select a SKU and qty to preview estimated COGS.';
   populateInvDropdowns(); renderInventory(); renderLots(); renderSalesLedger(); updateHeader(); renderCalendar();
+  sbPushSealed();
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -1357,6 +1361,7 @@ function confirmBreak(){
   document.getElementById('break-qty').value='1'; document.getElementById('break-notes').value=''; document.getElementById('break-date').value=todayIso();
   document.getElementById('break-preview').textContent='Cost is fully recognized at break time — no per-card tracking needed.';
   populateInvDropdowns(); renderInventory(); renderLots(); renderBreakLedger(); updateHeader(); renderCalendar();
+  sbPushSealed();
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -2929,6 +2934,7 @@ function saveSkuMetaForm(){
   upsertSkuMeta(sku, game||null, exp||null, pt||null, mp>0?mp:null, todayIso());
   document.getElementById('meta-mktprice').value='';
   renderSkuMetaList(); renderInvCharts();
+  sbPushSealed();
 }
 
 function populateMetaSkuSel(){
@@ -3583,8 +3589,179 @@ function renderSnapUI() {
 }
 
 // ══════════════════════════════════════════════════════════════
-// SUPABASE INTEGRATION
+// SUPABASE — SEALED INVENTORY SYNC
 // ══════════════════════════════════════════════════════════════
+
+// ── Push sealed inventory to Supabase ──
+async function sbPushSealed() {
+  if (!sbReady()) return;
+  try {
+    const BATCH = 200;
+
+    // ── Lots ──
+    await sbFetch('sealed_lots?qty_received=gte.0', { method:'DELETE' });
+    for (let i = 0; i < lots.length; i += BATCH) {
+      const batch = lots.slice(i, i+BATCH).map(l => ({
+        id:            String(l.id),
+        sku:           l.sku,
+        date:          l.date || null,
+        qty_received:  l.qtyReceived  || 0,
+        qty_remaining: l.qtyRemaining || 0,
+        unit_cost:     l.unitCost     || 0,
+      }));
+      await sbFetch('sealed_lots', { method:'POST', body:JSON.stringify(batch) });
+    }
+
+    // ── Sales ──
+    await sbFetch('sealed_sales?qty=gte.0', { method:'DELETE' });
+    for (let i = 0; i < sales.length; i += BATCH) {
+      const batch = sales.slice(i, i+BATCH).map(s => ({
+        id:         String(s.id),
+        date:       s.date || null,
+        sku:        s.sku,
+        qty:        s.qty        || 0,
+        sale_price: s.salePrice  || 0,
+        revenue:    s.revenue    || 0,
+        cogs:       s.cogs       || 0,
+        breakdown:  s.breakdown  || [],
+      }));
+      await sbFetch('sealed_sales', { method:'POST', body:JSON.stringify(batch) });
+    }
+
+    // ── Breaks ──
+    await sbFetch('sealed_breaks?qty=gte.0', { method:'DELETE' });
+    for (let i = 0; i < breaks.length; i += BATCH) {
+      const batch = breaks.slice(i, i+BATCH).map(b => ({
+        id:            String(b.id),
+        date:          b.date || null,
+        sku:           b.sku,
+        qty:           b.qty           || 0,
+        cogs:          b.cogs          || 0,
+        cost_per_unit: b.costPerUnit   || 0,
+        breakdown:     b.breakdown     || [],
+        notes:         b.notes        || null,
+      }));
+      await sbFetch('sealed_breaks', { method:'POST', body:JSON.stringify(batch) });
+    }
+
+    // ── SKU Meta ──
+    await sbFetch('sealed_sku_meta?sku=neq.', { method:'DELETE' });
+    if (skuMeta.length) {
+      const batch = skuMeta.map(m => ({
+        sku:           m.sku,
+        game:          m.game          || null,
+        expansion:     m.expansion     || null,
+        product_type:  m.productType   || null,
+        market_price:  m.marketPrice   || 0,
+        price_history: m.priceHistory  || [],
+      }));
+      for (let i = 0; i < batch.length; i += BATCH) {
+        await sbFetch('sealed_sku_meta', { method:'POST', body:JSON.stringify(batch.slice(i,i+BATCH)) });
+      }
+    }
+
+    setSyncStatus('ok', 'Synced ' + fmtDate(todayIso()));
+  } catch(e) {
+    setSyncStatus('err', 'Sealed sync failed');
+    console.warn('Sealed inventory Supabase sync failed:', e.message);
+  }
+}
+
+// ── Pull sealed inventory from Supabase ──
+async function sbPullSealed() {
+  if (!sbReady()) return;
+  setSyncStatus('busy', 'Loading sealed inventory…');
+  try {
+    // Pull lots
+    let allLots = [], page = 0;
+    while (true) {
+      const rows = await sbFetch(`sealed_lots?select=*&order=date.asc&limit=1000&offset=${page*1000}`);
+      if (!rows || !rows.length) break;
+      allLots = allLots.concat(rows);
+      if (rows.length < 1000) break;
+      page++;
+    }
+    lots = allLots.map(r => ({
+      id:           r.id,
+      sku:          r.sku,
+      date:         r.date         || '',
+      qtyReceived:  r.qty_received  || 0,
+      qtyRemaining: r.qty_remaining || 0,
+      unitCost:     parseFloat(r.unit_cost) || 0,
+    }));
+
+    // Pull sales
+    let allSales = [], sp = 0;
+    while (true) {
+      const rows = await sbFetch(`sealed_sales?select=*&order=date.desc&limit=1000&offset=${sp*1000}`);
+      if (!rows || !rows.length) break;
+      allSales = allSales.concat(rows);
+      if (rows.length < 1000) break;
+      sp++;
+    }
+    sales = allSales.map(r => ({
+      id:        r.id,
+      date:      r.date       || '',
+      sku:       r.sku,
+      qty:       r.qty        || 0,
+      salePrice: parseFloat(r.sale_price) || 0,
+      revenue:   parseFloat(r.revenue)    || 0,
+      cogs:      parseFloat(r.cogs)       || 0,
+      breakdown: r.breakdown  || [],
+    }));
+
+    // Pull breaks
+    let allBreaks = [], bp = 0;
+    while (true) {
+      const rows = await sbFetch(`sealed_breaks?select=*&order=date.desc&limit=1000&offset=${bp*1000}`);
+      if (!rows || !rows.length) break;
+      allBreaks = allBreaks.concat(rows);
+      if (rows.length < 1000) break;
+      bp++;
+    }
+    breaks = allBreaks.map(r => ({
+      id:          r.id,
+      date:        r.date         || '',
+      sku:         r.sku,
+      qty:         r.qty          || 0,
+      cogs:        parseFloat(r.cogs)          || 0,
+      costPerUnit: parseFloat(r.cost_per_unit) || 0,
+      breakdown:   r.breakdown    || [],
+      notes:       r.notes        || '',
+    }));
+
+    // Pull SKU meta
+    const metaRows = await sbFetch('sealed_sku_meta?select=*');
+    if (metaRows) {
+      skuMeta = metaRows.map(r => ({
+        sku:          r.sku,
+        game:         r.game         || null,
+        expansion:    r.expansion    || null,
+        productType:  r.product_type || null,
+        marketPrice:  parseFloat(r.market_price) || 0,
+        priceHistory: r.price_history || [],
+      }));
+    }
+
+    // Save to localStorage as cache
+    save();
+    setSyncStatus('ok', 'Pulled ' + fmtDate(todayIso()));
+
+    // Re-render sealed inventory tab
+    populateInvDropdowns();
+    renderInventory();
+    renderLots();
+    renderSalesLedger();
+    renderBreakLedger();
+    renderInvCharts();
+    updateHeader();
+
+    console.log(`✓ Pulled sealed: ${lots.length} lots · ${sales.length} sales · ${breaks.length} breaks · ${skuMeta.length} SKU meta`);
+  } catch(e) {
+    setSyncStatus('err', 'Pull failed');
+    console.warn('Sealed pull failed:', e.message);
+  }
+}
 const SB_URL_KEY = 'tcghq_sb_url';
 const SB_KEY_KEY = 'tcghq_sb_key';
 
@@ -3688,8 +3865,9 @@ async function saveSbConfig() {
     if (res.ok) {
       sbStatusMsg('✓ Connected and saved. Use Push to sync your singles to Supabase.', '#3ecf8e');
       setSyncStatus('ok', 'Connected');
-      document.getElementById('sb-push-btn').disabled = false;
-      document.getElementById('sb-pull-btn').disabled = false;
+      ['sb-push-btn','sb-pull-btn','sb-push-sealed-btn','sb-pull-sealed-btn'].forEach(id => {
+        const el = document.getElementById(id); if(el) el.disabled = false;
+      });
     } else {
       sbStatusMsg(`Connected but got error ${res.status} — check table permissions.`, 'var(--accent)');
       setSyncStatus('err', 'Config error');
@@ -3885,8 +4063,11 @@ async function sbInit() {
     });
     if (res.ok) {
       setSyncStatus('ok', 'Connected');
-      document.getElementById('sb-push-btn').disabled = false;
-      document.getElementById('sb-pull-btn').disabled = false;
+      ['sb-push-btn','sb-pull-btn','sb-push-sealed-btn','sb-pull-sealed-btn'].forEach(id => {
+        const el = document.getElementById(id); if(el) el.disabled = false;
+      });
+      // Auto-pull sealed inventory on startup so all devices stay in sync
+      await sbPullSealed();
     } else {
       setSyncStatus('err', 'Auth error');
     }
