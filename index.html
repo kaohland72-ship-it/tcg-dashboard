@@ -690,13 +690,15 @@ tr:hover td{background:rgba(255,255,255,.018)}
           </div>
           <div class="fg"><label>Expansion / Set</label><input type="text" id="buy-expansion" placeholder="e.g. Tarkir Dragonstorm"/></div>
           <div class="fg"><label>Product Type</label><input type="text" id="buy-prodtype" placeholder="e.g. Collector Box"/></div>
+          <div class="fg"><label>TCGPlayer SKU</label><input type="text" id="buy-tcgsku" placeholder="e.g. 12345" title="TCGPlayer product SKU — used for future market price automation"/></div>
+          <div class="fg"><label>Purchase Location</label><input type="text" id="buy-location" placeholder="e.g. Target, Local Game Store..."/></div>
           <div class="fg"><label>Qty</label><input type="number" id="buy-qty" value="1" min="1"/></div>
           <div class="fg"><label>Unit Cost ($)</label><input type="number" id="buy-cost" placeholder="0.00" step="0.01"/></div>
           <div class="fg"><label>Market Price ($)</label><input type="number" id="buy-mktprice" placeholder="0.00" step="0.01" title="Current market price per unit — used for chart analysis"/></div>
           <div class="fg"><label>Date</label><input type="date" id="buy-date"/></div>
           <button class="btn" onclick="receiveInventory()" style="grid-column:span 1">Receive</button>
         </div>
-        <div class="hint">Game, Expansion, and Product Type power the analysis charts. Market Price is used for portfolio value tracking — re-enter it when prices change to build a history.</div>
+        <div class="hint">Game, Expansion, and Product Type power the analysis charts. TCGPlayer SKU is reserved for future automated market price tracking.</div>
       </div>
       <div class="isf" id="inv-sell-form">
         <div class="fr c5">
@@ -741,7 +743,7 @@ tr:hover td{background:rgba(255,255,255,.018)}
           <select id="lot-sku-filter" onchange="renderLots()" style="max-width:170px;padding:4px 9px;font-size:10.5px"><option value="">All SKUs</option></select>
         </div>
         <div class="tw sc" style="max-height:320px">
-          <table><thead><tr><th>SKU</th><th>Received</th><th>Lot Qty</th><th>Remaining</th><th>Unit Cost</th></tr></thead>
+          <table><thead><tr><th>SKU</th><th>Received</th><th>Lot Qty</th><th>Remaining</th><th>Unit Cost</th><th>Location</th><th>TCG SKU</th></tr></thead>
           <tbody id="inv-lots-body"></tbody></table>
         </div>
       </div>
@@ -750,7 +752,7 @@ tr:hover td{background:rgba(255,255,255,.018)}
     <!-- ── SKU META / TAGGING ── -->
     <div class="sku-meta-panel" id="sku-meta-panel">
       <div class="sku-meta-title">SKU Tagging &amp; Market Prices <span style="font-weight:400;font-size:9.5px;color:var(--muted);margin-left:8px">Tag existing SKUs with game / expansion / product type and set current market prices</span></div>
-      <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;gap:8px;align-items:end;margin-bottom:8px">
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr auto;gap:8px;align-items:end;margin-bottom:8px">
         <div class="fg"><label>SKU</label><select id="meta-sku-sel"><option value="">— Select SKU —</option></select></div>
         <div class="fg"><label>Game</label>
           <select id="meta-game">
@@ -765,6 +767,7 @@ tr:hover td{background:rgba(255,255,255,.018)}
         </div>
         <div class="fg"><label>Expansion / Set</label><input type="text" id="meta-expansion" placeholder="e.g. Tarkir Dragonstorm"/></div>
         <div class="fg"><label>Product Type</label><input type="text" id="meta-prodtype" placeholder="e.g. Collector Box"/></div>
+        <div class="fg"><label>TCGPlayer SKU</label><input type="text" id="meta-tcgsku" placeholder="e.g. 12345"/></div>
         <div class="fg"><label>Market Price ($)</label><input type="number" id="meta-mktprice" placeholder="0.00" step="0.01"/></div>
         <button class="btn btn-sm" onclick="saveSkuMetaForm()" style="height:34px;align-self:end">Save</button>
       </div>
@@ -1367,18 +1370,22 @@ function receiveInventory(){
   const game=document.getElementById('buy-game').value;
   const expansion=document.getElementById('buy-expansion').value.trim();
   const productType=document.getElementById('buy-prodtype').value.trim();
+  const tcgSku=document.getElementById('buy-tcgsku').value.trim();
+  const purchaseLocation=document.getElementById('buy-location').value.trim();
   const qty=parseInt(document.getElementById('buy-qty').value);
   const cost=parseFloat(document.getElementById('buy-cost').value);
   const mktPrice=parseFloat(document.getElementById('buy-mktprice').value)||0;
   const date=document.getElementById('buy-date').value||todayIso();
   if(!sku||!qty||qty<1||isNaN(cost)||cost<=0){alert('Please fill SKU, Qty and Unit Cost.');return;}
-  lots.push({id:Date.now(),sku,date,qtyReceived:qty,qtyRemaining:qty,unitCost:cost});
-  upsertSkuMeta(sku, game||null, expansion||null, productType||null, mktPrice>0?mktPrice:null, date);
+  lots.push({id:Date.now(),sku,date,qtyReceived:qty,qtyRemaining:qty,unitCost:cost,purchaseLocation:purchaseLocation||null,tcgSku:tcgSku||null});
+  upsertSkuMeta(sku, game||null, expansion||null, productType||null, mktPrice>0?mktPrice:null, date, tcgSku||null);
   save();
   document.getElementById('buy-sku').value='';
   document.getElementById('buy-game').value='';
   document.getElementById('buy-expansion').value='';
   document.getElementById('buy-prodtype').value='';
+  document.getElementById('buy-tcgsku').value='';
+  document.getElementById('buy-location').value='';
   document.getElementById('buy-qty').value='1';
   document.getElementById('buy-cost').value='';
   document.getElementById('buy-mktprice').value='';
@@ -1516,7 +1523,18 @@ function renderLots(){
   const f=document.getElementById('lot-sku-filter').value;
   const filtered=[...lots].filter(l=>!f||l.sku===f).sort((a,b)=>a.sku.localeCompare(b.sku)||a.date.localeCompare(b.date));
   const tbody=document.getElementById('inv-lots-body');
-  tbody.innerHTML=filtered.length?filtered.map(l=>{const dep=l.qtyRemaining===0,pct=l.qtyReceived>0?Math.round((l.qtyRemaining/l.qtyReceived)*100):0;return `<tr style="${dep?'opacity:.4':''}"><td style="font-weight:500">${l.sku}</td><td style="color:var(--muted)">${fmtDate(l.date)}</td><td>${l.qtyReceived}</td><td><span class="qty-b ${dep?'zero':''}">${l.qtyRemaining}</span><span style="font-size:9.5px;color:var(--muted);margin-left:4px">${dep?'depleted':`${pct}% left`}</span></td><td style="color:var(--purchase)">${fmt$(l.unitCost)}</td></tr>`;}).join(''):'<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:22px">No lots.</td></tr>';
+  tbody.innerHTML=filtered.length?filtered.map(l=>{
+    const dep=l.qtyRemaining===0,pct=l.qtyReceived>0?Math.round((l.qtyRemaining/l.qtyReceived)*100):0;
+    return `<tr style="${dep?'opacity:.4':''}">
+      <td style="font-weight:500">${l.sku}</td>
+      <td style="color:var(--muted)">${fmtDate(l.date)}</td>
+      <td>${l.qtyReceived}</td>
+      <td><span class="qty-b ${dep?'zero':''}">${l.qtyRemaining}</span><span style="font-size:9.5px;color:var(--muted);margin-left:4px">${dep?'depleted':`${pct}% left`}</span></td>
+      <td style="color:var(--purchase)">${fmt$(l.unitCost)}</td>
+      <td style="color:var(--muted)">${l.purchaseLocation||'—'}</td>
+      <td style="color:var(--muted)">${l.tcgSku||'—'}</td>
+    </tr>`;
+  }).join(''):'<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:22px">No lots.</td></tr>';
 }
 function renderSalesLedger(){
   const sorted=[...sales].sort((a,b)=>b.date.localeCompare(a.date));
@@ -3024,12 +3042,13 @@ let skuMeta = JSON.parse(localStorage.getItem('tcg_sku_meta') || '[]');
 function saveSkuMeta(){ localStorage.setItem('tcg_sku_meta', JSON.stringify(skuMeta)); }
 function getSkuMeta(sku){ return skuMeta.find(m=>m.sku===sku); }
 
-function upsertSkuMeta(sku, game, expansion, productType, marketPrice, date){
+function upsertSkuMeta(sku, game, expansion, productType, marketPrice, date, tcgSku){
   let m = skuMeta.find(x=>x.sku===sku);
-  if(!m){ m={sku,game:null,expansion:null,productType:null,marketPrice:0,priceHistory:[]}; skuMeta.push(m); }
+  if(!m){ m={sku,game:null,expansion:null,productType:null,tcgSku:null,marketPrice:0,priceHistory:[]}; skuMeta.push(m); }
   if(game        !== null) m.game        = game;
   if(expansion   !== null) m.expansion   = expansion;
   if(productType !== null) m.productType = productType;
+  if(tcgSku      !== null && tcgSku !== undefined) m.tcgSku = tcgSku;
   if(marketPrice !== null && marketPrice > 0){
     m.marketPrice = marketPrice;
     const oh = lots.filter(l=>l.sku===sku).reduce((s,l)=>s+l.qtyRemaining,0);
@@ -3046,9 +3065,10 @@ function saveSkuMetaForm(){
   const game = document.getElementById('meta-game').value;
   const exp  = document.getElementById('meta-expansion').value.trim();
   const pt   = document.getElementById('meta-prodtype').value.trim();
+  const tcgSku = document.getElementById('meta-tcgsku').value.trim();
   const mp   = parseFloat(document.getElementById('meta-mktprice').value)||0;
   if(!sku){ alert('Select a SKU.'); return; }
-  upsertSkuMeta(sku, game||null, exp||null, pt||null, mp>0?mp:null, todayIso());
+  upsertSkuMeta(sku, game||null, exp||null, pt||null, mp>0?mp:null, todayIso(), tcgSku||null);
   document.getElementById('meta-mktprice').value='';
   renderSkuMetaList(); renderInvCharts();
   sbPushSealed();
@@ -3064,6 +3084,7 @@ function populateMetaSkuSel(){
     document.getElementById('meta-game').value      = m?.game||'';
     document.getElementById('meta-expansion').value = m?.expansion||'';
     document.getElementById('meta-prodtype').value  = m?.productType||'';
+    document.getElementById('meta-tcgsku').value    = m?.tcgSku||'';
     document.getElementById('meta-mktprice').value  = m?.marketPrice>0?m.marketPrice:'';
   };
 }
@@ -3099,11 +3120,12 @@ function renderSkuMetaList(){
   const container=document.getElementById('sku-meta-list');
   if(!allSkus.length){ container.innerHTML='<div class="empty-state" style="padding:16px">No inventory SKUs yet.</div>'; return; }
   container.innerHTML=`
-    <div style="display:grid;grid-template-columns:2fr .8fr .8fr 1fr 1fr auto;gap:8px;padding:4px 4px 6px;border-bottom:1px solid var(--border);margin-bottom:4px">
+    <div style="display:grid;grid-template-columns:2fr .8fr .8fr 1fr .8fr 1fr auto;gap:8px;padding:4px 4px 6px;border-bottom:1px solid var(--border);margin-bottom:4px">
       <span style="font-size:9.5px;color:var(--muted);letter-spacing:1px;text-transform:uppercase">SKU</span>
       <span style="font-size:9.5px;color:var(--muted);letter-spacing:1px;text-transform:uppercase">Game</span>
       <span style="font-size:9.5px;color:var(--muted);letter-spacing:1px;text-transform:uppercase">Expansion</span>
       <span style="font-size:9.5px;color:var(--muted);letter-spacing:1px;text-transform:uppercase">Product Type</span>
+      <span style="font-size:9.5px;color:var(--muted);letter-spacing:1px;text-transform:uppercase">TCG SKU</span>
       <span style="font-size:9.5px;color:var(--muted);letter-spacing:1px;text-transform:uppercase">Mkt Price</span>
       <span></span>
     </div>`+
@@ -3113,11 +3135,12 @@ function renderSkuMetaList(){
       if(oh===0&&!m) return '';
       const gameCls=gameBadgeCls(m?.game);
       const gameHtml=m?.game?`<span class="game-badge ${gameCls}">${m.game}</span>`:`<span style="color:var(--muted);font-size:9.5px;font-style:italic">untagged</span>`;
-      return `<div class="sku-meta-item" style="grid-template-columns:2fr .8fr .8fr 1fr 1fr auto">
+      return `<div class="sku-meta-item" style="grid-template-columns:2fr .8fr .8fr 1fr .8fr 1fr auto">
         <div class="smi-sku" title="${sku}">${sku}</div>
         <div>${gameHtml}</div>
         <div><span class="smi-tag">${m?.expansion||'<span style="color:var(--muted);font-style:italic">—</span>'}</span></div>
         <div><span class="smi-tag">${m?.productType||'<span style="color:var(--muted);font-style:italic">—</span>'}</span></div>
+        <div><span class="smi-tag">${m?.tcgSku||'<span style="color:var(--muted);font-style:italic">—</span>'}</span></div>
         <div><span class="${m?.marketPrice>0?'price-pill':'price-pill no-price'}">${m?.marketPrice>0?fmt$(m.marketPrice):'—'}</span></div>
         <div><button class="btn btn-sm btn-outline" onclick="quickEditMeta('${sku.replace(/'/g,"\\'")}')">Edit</button></div>
       </div>`;
@@ -3722,12 +3745,14 @@ async function sbPushSealed() {
     if (lots.length) {
       for (let i = 0; i < lots.length; i += BATCH) {
         const batch = lots.slice(i, i+BATCH).map(l => ({
-          id:            String(l.id),
-          sku:           l.sku,
-          date:          l.date || null,
-          qty_received:  l.qtyReceived  || 0,
-          qty_remaining: l.qtyRemaining || 0,
-          unit_cost:     l.unitCost     || 0,
+          id:                String(l.id),
+          sku:               l.sku,
+          date:              l.date || null,
+          qty_received:      l.qtyReceived  || 0,
+          qty_remaining:     l.qtyRemaining || 0,
+          unit_cost:         l.unitCost     || 0,
+          purchase_location: l.purchaseLocation || null,
+          tcg_sku:           l.tcgSku       || null,
         }));
         await sbFetch('sealed_lots', { method:'POST', body:JSON.stringify(batch) });
       }
@@ -3777,6 +3802,7 @@ async function sbPushSealed() {
         game:          m.game          || null,
         expansion:     m.expansion     || null,
         product_type:  m.productType   || null,
+        tcg_sku:       m.tcgSku        || null,
         market_price:  m.marketPrice   || 0,
         price_history: m.priceHistory  || [],
       }));
@@ -3807,12 +3833,14 @@ async function sbPullSealed() {
       page++;
     }
     lots = allLots.map(r => ({
-      id:           r.id,
-      sku:          r.sku,
-      date:         r.date         || '',
-      qtyReceived:  r.qty_received  || 0,
-      qtyRemaining: r.qty_remaining || 0,
-      unitCost:     parseFloat(r.unit_cost) || 0,
+      id:               r.id,
+      sku:              r.sku,
+      date:             r.date              || '',
+      qtyReceived:      r.qty_received      || 0,
+      qtyRemaining:     r.qty_remaining     || 0,
+      unitCost:         parseFloat(r.unit_cost) || 0,
+      purchaseLocation: r.purchase_location || null,
+      tcgSku:           r.tcg_sku           || null,
     }));
 
     // Pull sales
@@ -3863,6 +3891,7 @@ async function sbPullSealed() {
         game:         r.game         || null,
         expansion:    r.expansion    || null,
         productType:  r.product_type || null,
+        tcgSku:       r.tcg_sku      || null,
         marketPrice:  parseFloat(r.market_price) || 0,
         priceHistory: r.price_history || [],
       }));
