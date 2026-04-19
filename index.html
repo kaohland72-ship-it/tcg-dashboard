@@ -1528,7 +1528,8 @@ function renderLots(){
   const tbody=document.getElementById('inv-lots-body');
   tbody.innerHTML=filtered.length?filtered.map(l=>{
     const dep=l.qtyRemaining===0,pct=l.qtyReceived>0?Math.round((l.qtyRemaining/l.qtyReceived)*100):0;
-    return `<tr id="lot-row-${l.id}" style="${dep?'opacity:.5':''}">
+    const safeId=String(l.id).replace(/\./g,'_');
+    return `<tr id="lot-row-${safeId}" style="${dep?'opacity:.5':''}">
       <td style="font-weight:500">${l.sku}</td>
       <td style="color:var(--muted)">${fmtDate(l.date)}</td>
       <td>${l.qtyReceived}</td>
@@ -1536,44 +1537,44 @@ function renderLots(){
       <td style="color:var(--purchase)">${fmt$(l.unitCost)}</td>
       <td style="color:var(--muted)">${l.purchaseLocation||'—'}</td>
       <td style="color:var(--muted)">${l.tcgSku||'—'}</td>
-      <td><button class="btn btn-sm btn-outline" onclick="editLot(${l.id})" title="Edit lot">✎</button></td>
+      <td><button class="btn btn-sm btn-outline" onclick="editLot('${safeId}',${l.id})" title="Edit lot">✎</button></td>
     </tr>`;
   }).join(''):'<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:22px">No lots.</td></tr>';
 }
 
-function editLot(id) {
+function editLot(safeId, id) {
   const l = lots.find(x => x.id === id);
   if (!l) return;
-  const row = document.getElementById('lot-row-'+id);
+  const row = document.getElementById('lot-row-'+safeId);
   if (!row) return;
   row.classList.add('lot-edit-row');
   row.innerHTML = `
-    <td><input type="text"   id="le-sku-${id}"  value="${l.sku.replace(/"/g,'&quot;')}" style="width:100%;min-width:160px"/></td>
-    <td><input type="date"   id="le-date-${id}" value="${l.date||''}"/></td>
-    <td><input type="number" id="le-rcv-${id}"  value="${l.qtyReceived}"  min="0" style="width:70px"/></td>
-    <td><input type="number" id="le-rem-${id}"  value="${l.qtyRemaining}" min="0" style="width:70px"/></td>
-    <td><input type="number" id="le-cost-${id}" value="${l.unitCost}" step="0.01" min="0" style="width:80px"/></td>
-    <td><input type="text"   id="le-loc-${id}"  value="${(l.purchaseLocation||'').replace(/"/g,'&quot;')}" placeholder="Location"/></td>
-    <td><input type="text"   id="le-tsku-${id}" value="${(l.tcgSku||'').replace(/"/g,'&quot;')}" placeholder="TCG SKU"/></td>
+    <td><input type="text"   id="le-sku-${safeId}"  value="${l.sku.replace(/"/g,'&quot;')}" style="width:100%;min-width:160px"/></td>
+    <td><input type="date"   id="le-date-${safeId}" value="${l.date||''}"/></td>
+    <td><input type="number" id="le-rcv-${safeId}"  value="${l.qtyReceived}"  min="0" style="width:70px"/></td>
+    <td><input type="number" id="le-rem-${safeId}"  value="${l.qtyRemaining}" min="0" style="width:70px"/></td>
+    <td><input type="number" id="le-cost-${safeId}" value="${l.unitCost}" step="0.01" min="0" style="width:80px"/></td>
+    <td><input type="text"   id="le-loc-${safeId}"  value="${(l.purchaseLocation||'').replace(/"/g,'&quot;')}" placeholder="Location"/></td>
+    <td><input type="text"   id="le-tsku-${safeId}" value="${(l.tcgSku||'').replace(/"/g,'&quot;')}" placeholder="TCG SKU"/></td>
     <td style="white-space:nowrap">
-      <button class="btn btn-sm" onclick="saveLotEdit(${id})" style="margin-right:4px">✓</button>
+      <button class="btn btn-sm" onclick="saveLotEdit('${safeId}',${id})" style="margin-right:4px">✓</button>
       <button class="btn btn-sm btn-outline" onclick="cancelEditLot()">✕</button>
     </td>`;
-  document.getElementById('le-sku-'+id)?.focus();
+  document.getElementById('le-sku-'+safeId)?.focus();
 }
 
 function cancelEditLot() { renderLots(); }
 
-function saveLotEdit(id) {
-  const sku      = document.getElementById('le-sku-'+id)?.value.trim();
-  const date     = document.getElementById('le-date-'+id)?.value;
-  const rcv      = parseInt(document.getElementById('le-rcv-'+id)?.value) || 0;
-  const rem      = parseInt(document.getElementById('le-rem-'+id)?.value) || 0;
-  const cost     = parseFloat(document.getElementById('le-cost-'+id)?.value) || 0;
-  const loc      = document.getElementById('le-loc-'+id)?.value.trim();
-  const tcgSku   = document.getElementById('le-tsku-'+id)?.value.trim();
+function saveLotEdit(safeId, id) {
+  const sku    = document.getElementById('le-sku-'+safeId)?.value.trim();
+  const date   = document.getElementById('le-date-'+safeId)?.value;
+  const rcv    = parseInt(document.getElementById('le-rcv-'+safeId)?.value) || 0;
+  const rem    = parseInt(document.getElementById('le-rem-'+safeId)?.value) || 0;
+  const cost   = parseFloat(document.getElementById('le-cost-'+safeId)?.value) || 0;
+  const loc    = document.getElementById('le-loc-'+safeId)?.value.trim();
+  const tcgSku = document.getElementById('le-tsku-'+safeId)?.value.trim();
 
-  if (!sku) { alert('SKU name is required.'); return; }
+  if (!sku)   { alert('SKU name is required.'); return; }
   if (cost <= 0) { alert('Unit cost must be greater than zero.'); return; }
   if (rem > rcv) { alert('Qty remaining cannot exceed qty received.'); return; }
 
@@ -1582,7 +1583,6 @@ function saveLotEdit(id) {
         purchaseLocation:loc||null, tcgSku:tcgSku||null }
     : l);
 
-  // If SKU name changed, also update skuMeta key and dropdowns
   save();
   populateInvDropdowns();
   renderInventory();
