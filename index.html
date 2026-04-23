@@ -1543,7 +1543,7 @@ function renderLots(){
 }
 
 function editLot(safeId, id) {
-  const l = lots.find(x => x.id === id);
+  const l = lots.find(x => String(x.id) === String(id));
   if (!l) return;
   const row = document.getElementById('lot-row-'+safeId);
   if (!row) return;
@@ -1557,7 +1557,7 @@ function editLot(safeId, id) {
     <td><input type="text"   id="le-loc-${safeId}"  value="${(l.purchaseLocation||'').replace(/"/g,'&quot;')}" placeholder="Location"/></td>
     <td><input type="text"   id="le-tsku-${safeId}" value="${(l.tcgSku||'').replace(/"/g,'&quot;')}" placeholder="TCG SKU"/></td>
     <td style="white-space:nowrap">
-      <button class="btn btn-sm" onclick="saveLotEdit('${safeId}',${id})" style="margin-right:4px">✓</button>
+      <button class="btn btn-sm" onclick="saveLotEdit('${safeId}','${id}')" style="margin-right:4px">✓</button>
       <button class="btn btn-sm btn-outline" onclick="cancelEditLot()">✕</button>
     </td>`;
   document.getElementById('le-sku-'+safeId)?.focus();
@@ -1574,11 +1574,11 @@ function saveLotEdit(safeId, id) {
   const loc    = document.getElementById('le-loc-'+safeId)?.value.trim();
   const tcgSku = document.getElementById('le-tsku-'+safeId)?.value.trim();
 
-  if (!sku)   { alert('SKU name is required.'); return; }
+  if (!sku)      { alert('SKU name is required.'); return; }
   if (cost <= 0) { alert('Unit cost must be greater than zero.'); return; }
   if (rem > rcv) { alert('Qty remaining cannot exceed qty received.'); return; }
 
-  lots = lots.map(l => l.id === id
+  lots = lots.map(l => String(l.id) === String(id)
     ? { ...l, sku, date, qtyReceived:rcv, qtyRemaining:rem, unitCost:cost,
         purchaseLocation:loc||null, tcgSku:tcgSku||null }
     : l);
@@ -1635,13 +1635,13 @@ function parseCSV(text) {
 // Auto-detect common TCGPlayer/BinderPOS column names
 const FIELD_ALIASES = {
   name:           ['name','card name','product name','title','card','item name','product'],
-  tcgId:          ['product id','tcgplayer id','tcg id','sku','product_id','productid','tcgplayerid','id'],
+  tcgId:          ['product id','tcgplayer id','tcgplayer id','tcg id','sku','product_id','productid','tcgplayerid','id'],
   set:            ['set name','set','expansion','series','set_name'],
   rarity:         ['rarity','card rarity','rarity name','printing','foiling'],
   condition:      ['condition','cond','grade','quality'],
-  qtyListed:      ['qty listed','listed qty','quantity listed','listed','qty for sale','quantity for sale','quantity','qty','qty on hand','on hand','quantity on hand','total qty','stock','add to quantity'],
-  marketPrice:    ['market price','price','tcg market price','market','tcg price','low price','mid price','unit price'],
-  tcgListedPrice: ['my price','listed price','tcg listed price','sell price','selling price','store price','listed at','my listed price','tcgplayer listed price'],
+  qtyListed:      ['total quantity','qty listed','listed qty','quantity listed','listed','qty for sale','quantity for sale','quantity','qty','qty on hand','on hand','quantity on hand','total qty','stock','add to quantity'],
+  marketPrice:    ['tcg market price','market price','price','market','tcg price','low price','mid price','unit price'],
+  tcgListedPrice: ['tcg marketplace price','my price','listed price','tcg listed price','sell price','selling price','store price','listed at','my listed price','tcgplayer listed price'],
 };
 
 function autoDetect(headers) {
@@ -1751,7 +1751,15 @@ function previewImport() {
     const rarity          = normalizeRarity(getCol(row, 'rarity'));
     const rawCond         = getCol(row, 'condition');
     const condition       = normalizeCondition(rawCond) || rawCond || 'NM';
-    const qtyListed       = Math.round(parseFloat(getCol(row, 'qtyListed'))  || 0);
+
+    // Skip buylist rows — TCGPlayer exports buylist with single-letter condition
+    // codes (M, R, U, B) and decimal quantities that are actually prices
+    const rawQtyStr = getCol(row, 'qtyListed');
+    const rawQtyNum = parseFloat(rawQtyStr) || 0;
+    const isBuylist = rawQtyNum > 0 && rawQtyNum !== Math.round(rawQtyNum);
+    if (isBuylist) return null; // skip — decimal qty is a price, not inventory count
+
+    const qtyListed       = Math.round(rawQtyNum);
     const marketPrice     = parseFloat(getCol(row, 'marketPrice').replace(/[^0-9.]/g,'')) || 0;
     const tcgListedPrice  = parseFloat(getCol(row, 'tcgListedPrice').replace(/[^0-9.]/g,'')) || 0;
 
