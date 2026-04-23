@@ -4257,14 +4257,18 @@ async function sbSyncAfterImport() {
   try {
     const BATCH = 100;
 
-    // Deduplicate by name+condition before pushing
+    // Deduplicate by tcgId+condition (primary) or name+condition (fallback)
     const seen = new Set();
     const cleanSingles = singles.filter(s => {
-      const key = (s.name.toLowerCase().trim()+'||'+(s.condition||'NM')).toLowerCase();
+      const key = s.tcgId
+        ? (s.tcgId.trim()+'||'+(s.condition||'NM')).toLowerCase()
+        : (s.name.toLowerCase().trim()+'||'+(s.condition||'NM')).toLowerCase();
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
     });
+
+    console.log(`Syncing ${cleanSingles.length} singles to Supabase (from ${singles.length} in memory)`);
 
     // Upsert current singles
     for (let i = 0; i < cleanSingles.length; i += BATCH) {
@@ -4321,9 +4325,9 @@ async function sbInit() {
       ['sb-push-btn','sb-pull-btn','sb-push-sealed-btn','sb-pull-sealed-btn'].forEach(id => {
         const el = document.getElementById(id); if(el) el.disabled = false;
       });
-      // Auto-pull both sealed and singles on startup
+      // Auto-pull sealed inventory on startup so all devices stay in sync
+      // Singles are NOT auto-pulled — they are pushed after each import
       await sbPullSealed();
-      await sbPullAll();
     } else {
       setSyncStatus('err', 'Auth error');
     }
