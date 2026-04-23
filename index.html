@@ -1718,36 +1718,31 @@ function previewImport() {
     return idx >= 0 ? (row[idx] || '').trim() : '';
   };
 
-  // Build existing lookup — TCGPlayer ID is the primary key (never changes),
-  // name+condition is fallback for records without an ID
-  const byTcgId   = {};  // tcgId → record (regardless of condition, one card one ID)
-  const byNameCond = {};  // name+condition → record (fallback)
+  // Build existing lookup — TCGPlayer ID + condition is primary key
+  // (same card can exist as NM and NM Foil — both need separate records)
+  const byTcgIdCond = {};  // tcgId+condition → record
+  const byNameCond  = {};  // name+condition → record (fallback)
   singles.forEach(s => {
-    if (s.tcgId) byTcgId[s.tcgId.trim()] = s;
+    if (s.tcgId) {
+      const key = (s.tcgId.trim() + '||' + (s.condition||'NM')).toLowerCase();
+      byTcgIdCond[key] = s;
+    }
     const nameCond = (s.name.toLowerCase().trim() + '||' + (s.condition||'NM')).toLowerCase();
     byNameCond[nameCond] = s;
   });
 
-  // Deduplicate CSV rows by TCGPlayer ID first, then name+condition
+  // Deduplicate CSV rows by TCGPlayer ID+condition, then name+condition
   const csvDeduped = [];
-  const csvSeenId   = new Set();
-  const csvSeenName = new Set();
+  const csvSeen = new Set();
   csvRows.forEach(row => {
     const name  = getCol(row, 'name'); if (!name) return;
     const tcgId = getCol(row, 'tcgId');
     const rawCond = getCol(row, 'condition');
     const condition = normalizeCondition(rawCond) || rawCond || 'NM';
-    // Primary dedup key: TCGPlayer ID if available
-    if (tcgId) {
-      if (csvSeenId.has(tcgId.trim())) return;
-      csvSeenId.add(tcgId.trim());
-    } else {
-      // Fallback: name+condition
-      const key = (name.toLowerCase().trim() + '||' + condition).toLowerCase();
-      if (csvSeenName.has(key)) return;
-      csvSeenName.add(key);
-    }
-    csvDeduped.push(row);
+    const key = tcgId
+      ? (tcgId.trim() + '||' + condition).toLowerCase()
+      : (name.toLowerCase().trim() + '||' + condition).toLowerCase();
+    if (!csvSeen.has(key)) { csvSeen.add(key); csvDeduped.push(row); }
   });
 
   previewData = csvDeduped.map(row => {
@@ -1769,9 +1764,10 @@ function previewImport() {
     const marketPrice     = parseFloat(getCol(row, 'marketPrice').replace(/[^0-9.]/g,'')) || 0;
     const tcgListedPrice  = parseFloat(getCol(row, 'tcgListedPrice').replace(/[^0-9.]/g,'')) || 0;
 
-    // Match existing record — TCGPlayer ID is authoritative, name+condition is fallback
-    const existing = (tcgId && byTcgId[tcgId.trim()])
-      || byNameCond[(name.toLowerCase().trim() + '||' + condition).toLowerCase()];
+    // Match existing record by TCGPlayer ID+condition, then name+condition
+    const tcgKey  = tcgId ? (tcgId.trim() + '||' + condition).toLowerCase() : null;
+    const nameKey = (name.toLowerCase().trim() + '||' + condition).toLowerCase();
+    const existing = (tcgKey && byTcgIdCond[tcgKey]) || byNameCond[nameKey];
     const status = existing ? 'update' : 'new';
     return { name, tcgId, set, rarity, condition, qtyListed, marketPrice, tcgListedPrice, status, existingId: existing?.id || null };
   }).filter(Boolean);
@@ -2002,13 +1998,12 @@ function confirmImport() {
   if (!previewData.length) return;
   const now = todayIso();
 
-  // Build lookup — TCGPlayer ID is primary key, name+condition is fallback
-  const byTcgId2 = {};
-  const byNameCond2 = {};
+  // Build lookup — TCGPlayer ID+condition is primary key
+  const byTcgIdCond2 = {};
+  const byNameCond2  = {};
   singles.forEach(s => {
-    if (s.tcgId) byTcgId2[s.tcgId.trim()] = s;
-    const nc = (s.name.toLowerCase().trim()+'||'+(s.condition||'NM')).toLowerCase();
-    byNameCond2[nc] = s;
+    if (s.tcgId) byTcgIdCond2[(s.tcgId.trim()+'||'+(s.condition||'NM')).toLowerCase()] = s;
+    byNameCond2[(s.name.toLowerCase().trim()+'||'+(s.condition||'NM')).toLowerCase()] = s;
   });
 
   // Track which existing IDs are present in this import
@@ -2016,8 +2011,9 @@ function confirmImport() {
 
   // Build the new singles list from the CSV — this is now the full source of truth
   const newSingles = previewData.map(r => {
-    const nc = (r.name.toLowerCase().trim()+'||'+(r.condition||'NM')).toLowerCase();
-    const existing = (r.tcgId && byTcgId2[r.tcgId.trim()]) || byNameCond2[nc];
+    const tcgKey2  = r.tcgId ? (r.tcgId.trim()+'||'+(r.condition||'NM')).toLowerCase() : null;
+    const nameKey2 = (r.name.toLowerCase().trim()+'||'+(r.condition||'NM')).toLowerCase();
+    const existing = (tcgKey2 && byTcgIdCond2[tcgKey2]) || byNameCond2[nameKey2];
     const id = existing ? existing.id : Date.now() + Math.random();
     if (existing) seenIds.add(existing.id);
 
@@ -2060,8 +2056,9 @@ function confirmImport() {
   const purged = purgeZeroedCards();   // remove all zero-qty cards immediately
 
   const added = previewData.filter(r => {
-    const nc = (r.name.toLowerCase().trim()+'||'+(r.condition||'NM')).toLowerCase();
-    return !(r.tcgId && byTcgId2[r.tcgId.trim()]) && !byNameCond2[nc];
+    const tcgKey2  = r.tcgId ? (r.tcgId.trim()+'||'+(r.condition||'NM')).toLowerCase() : null;
+    const nameKey2 = (r.name.toLowerCase().trim()+'||'+(r.condition||'NM')).toLowerCase();
+    return !(tcgKey2 && byTcgIdCond2[tcgKey2]) && !byNameCond2[nameKey2];
   }).length;
   const updated = previewData.length - added;
 
