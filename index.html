@@ -1611,25 +1611,42 @@ function deleteBreak(id){if(!confirm('Delete break? Lots will NOT be restored.')
 // ══════════════════════════════════════════════════════════════
 // Robust CSV parser handling quoted fields with commas/newlines
 function parseCSV(text) {
-  const lines = []; let cur = '', inQ = false;
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i], next = text[i+1];
-    if (c === '"') { if (inQ && next === '"') { cur += '"'; i++; } else { inQ = !inQ; } }
-    else if (c === '\n' && !inQ) { lines.push(cur); cur = ''; }
-    else if (c === '\r' && next === '\n' && !inQ) { lines.push(cur); cur = ''; i++; }
-    else { cur += c; }
-  }
-  if (cur) lines.push(cur);
-  return lines.filter(l => l.trim()).map(line => {
-    const fields = []; let f = '', inq = false;
-    for (let i = 0; i <= line.length; i++) {
-      const c = line[i];
-      if (c === '"') { if (inq && line[i+1] === '"') { f += '"'; i++; } else { inq = !inq; } }
-      else if ((c === ',' || i === line.length) && !inq) { fields.push(f.trim()); f = ''; }
-      else { f += (c||''); }
+  // Normalize line endings
+  const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const rows = [];
+  let i = 0;
+  while (i < normalized.length) {
+    const fields = [];
+    // Parse one row
+    while (i < normalized.length && normalized[i] !== '\n') {
+      let field = '';
+      if (normalized[i] === '"') {
+        // Quoted field — consume until closing quote
+        i++; // skip opening quote
+        while (i < normalized.length) {
+          if (normalized[i] === '"' && normalized[i+1] === '"') {
+            field += '"'; i += 2; // escaped quote
+          } else if (normalized[i] === '"') {
+            i++; break; // closing quote
+          } else {
+            field += normalized[i++];
+          }
+        }
+        // Skip comma after closing quote
+        if (normalized[i] === ',') i++;
+      } else {
+        // Unquoted field — read until comma or newline
+        while (i < normalized.length && normalized[i] !== ',' && normalized[i] !== '\n') {
+          field += normalized[i++];
+        }
+        if (normalized[i] === ',') i++;
+      }
+      fields.push(field.trim());
     }
-    return fields;
-  });
+    if (normalized[i] === '\n') i++; // skip newline
+    if (fields.some(f => f)) rows.push(fields);
+  }
+  return rows;
 }
 
 // Auto-detect common TCGPlayer/BinderPOS column names
