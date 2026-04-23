@@ -4257,14 +4257,19 @@ async function sbSyncAfterImport() {
   try {
     const BATCH = 100;
 
-    // Deduplicate by tcgId+condition (primary) or name+condition (fallback)
-    const seen = new Set();
+    // Deduplicate by ID first (prevents ON CONFLICT errors),
+    // then by tcgId+condition, then by name+condition
+    const seenIds  = new Set();
+    const seenKeys = new Set();
     const cleanSingles = singles.filter(s => {
-      const key = s.tcgId
+      const idKey = String(s.id);
+      if (seenIds.has(idKey)) return false;
+      seenIds.add(idKey);
+      const condKey = s.tcgId
         ? (s.tcgId.trim()+'||'+(s.condition||'NM')).toLowerCase()
         : (s.name.toLowerCase().trim()+'||'+(s.condition||'NM')).toLowerCase();
-      if (seen.has(key)) return false;
-      seen.add(key);
+      if (seenKeys.has(condKey)) return false;
+      seenKeys.add(condKey);
       return true;
     });
 
