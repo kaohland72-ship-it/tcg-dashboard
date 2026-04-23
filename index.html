@@ -1795,6 +1795,13 @@ function previewImport() {
 function normalizeCondition(raw) {
   if (!raw) return null;
   const r = raw.toLowerCase().trim();
+  // Foil variants — check before non-foil so "near mint foil" doesn't match "near mint"
+  if (r.includes('near mint foil')||r==='nm foil'||r==='nmf')    return 'NM Foil';
+  if (r.includes('lightly played foil')||r==='lp foil'||r==='lpf') return 'LP Foil';
+  if (r.includes('moderately played foil')||r==='mp foil'||r==='mpf') return 'MP Foil';
+  if (r.includes('heavily played foil')||r==='hp foil'||r==='hpf') return 'HP Foil';
+  if (r.includes('damaged foil')||r==='dmg foil'||r==='df')       return 'DMG Foil';
+  // Non-foil
   if (r.includes('near mint')||r==='nm'||r==='mint') return 'NM';
   if (r.includes('lightly')||r==='lp') return 'LP';
   if (r.includes('moderately')||r==='mp') return 'MP';
@@ -2118,7 +2125,7 @@ function renderSingles() {
   tbody.innerHTML = filtered.map(s => {
     const mktVal = s.qtyListed * s.marketPrice;
     const tcgUrl = s.tcgId ? `https://www.tcgplayer.com/product/${s.tcgId}` : '';
-    const condColor = {NM:'var(--sale)',LP:'var(--text)',MP:'var(--accent)',HP:'var(--accent3)',DMG:'var(--accent3)'}[s.condition]||'var(--text)';
+    const condColor = {'NM':'var(--sale)','NM Foil':'var(--sale)','LP':'var(--text)','LP Foil':'var(--text)','MP':'var(--accent)','MP Foil':'var(--accent)','HP':'var(--accent3)','HP Foil':'var(--accent3)','DMG':'var(--accent3)','DMG Foil':'var(--accent3)'}[s.condition]||'var(--text)';
     const listedDelta = (s.tcgListedPrice>0 && s.marketPrice>0) ? s.tcgListedPrice - s.marketPrice : null;
     const listedCell = s.tcgListedPrice>0
       ? `<span style="color:var(--text)">${fmt$(s.tcgListedPrice)}</span>${listedDelta!=null?` <span style="font-size:9px;color:${listedDelta>=0?'var(--sale)':'var(--accent3)'}">(${listedDelta>=0?'+':''}${fmt$(listedDelta)})</span>`:''}`
@@ -4338,9 +4345,17 @@ document.getElementById('break-modal').addEventListener('click',e=>{if(e.target=
 document.getElementById('task-title').addEventListener('keydown',e=>{if(e.key==='Enter') addTask();});
 document.getElementById('rel-name').addEventListener('keydown',e=>{if(e.key==='Enter') addRelease();});
 
-// Clean any dirty rarity values and decimal quantities already in storage before first render
+// Clean any dirty rarity values, decimal quantities, and condition values already in storage
 cleanExistingRarities();
 cleanExistingQtys();
+// Normalize any raw condition strings already stored (e.g. "Near Mint Foil" → "NM Foil")
+let _condChanged = false;
+singles = singles.map(s => {
+  const normalized = normalizeCondition(s.condition);
+  if (normalized && normalized !== s.condition) { _condChanged = true; return {...s, condition: normalized}; }
+  return s;
+});
+if (_condChanged) save();
 // Purge zeroed cards and force compact rewrite of all existing singles data immediately
 singles = singles.filter(s => s.qtyListed > 0);
 localStorage.setItem('tcg_singles', JSON.stringify(compactSingles(singles)));
