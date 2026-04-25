@@ -1540,9 +1540,28 @@ function renderLots(){
       <td style="color:var(--purchase)">${fmt$(l.unitCost)}</td>
       <td style="color:var(--muted)">${l.purchaseLocation||'—'}</td>
       <td style="color:var(--muted)">${l.tcgSku||'—'}</td>
-      <td><button class="btn btn-sm btn-outline" onclick="editLot('${safeId}',${l.id})" title="Edit lot">✎</button></td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-sm btn-outline" onclick="editLot('${safeId}',${l.id})" title="Edit lot" style="margin-right:4px">✎</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteLot('${safeId}',${l.id})" title="Delete lot">✕</button>
+      </td>
     </tr>`;
   }).join(''):'<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:22px">No lots.</td></tr>';
+}
+
+function deleteLot(safeId, id) {
+  const lot = lots.find(l => String(l.id) === String(id));
+  if (!lot) return;
+  const fmtQty = q => Number.isInteger(q) ? q : q.toFixed(2);
+  const msg = `Delete this lot?\n\n${lot.sku}\nReceived: ${fmtQty(lot.qtyReceived)} units on ${fmtDate(lot.date)}\nRemaining: ${fmtQty(lot.qtyRemaining)} units\nUnit Cost: ${fmt$(lot.unitCost)}\n\nNote: Any sales or breaks that consumed this lot will NOT be reversed. Only delete if this was entered in error.`;
+  if (!confirm(msg)) return;
+  lots = lots.filter(l => String(l.id) !== String(id));
+  save();
+  populateInvDropdowns();
+  renderInventory();
+  renderLots();
+  renderInvCharts();
+  updateHeader();
+  sbPushSealed();
 }
 
 function editLot(safeId, id) {
