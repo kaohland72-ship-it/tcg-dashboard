@@ -695,7 +695,7 @@ tr:hover td{background:rgba(255,255,255,.018)}
           <div class="fg"><label>Product Type</label><input type="text" id="buy-prodtype" placeholder="e.g. Collector Box"/></div>
           <div class="fg"><label>TCGPlayer SKU</label><input type="text" id="buy-tcgsku" placeholder="e.g. 12345" title="TCGPlayer product SKU — used for future market price automation"/></div>
           <div class="fg"><label>Purchase Location</label><input type="text" id="buy-location" placeholder="e.g. Target, Local Game Store..."/></div>
-          <div class="fg"><label>Qty</label><input type="number" id="buy-qty" value="1" min="1"/></div>
+          <div class="fg"><label>Qty</label><input type="number" id="buy-qty" value="1" min="0.01" step="any"/></div>
           <div class="fg"><label>Unit Cost ($)</label><input type="number" id="buy-cost" placeholder="0.00" step="0.01"/></div>
           <div class="fg"><label>Market Price ($)</label><input type="number" id="buy-mktprice" placeholder="0.00" step="0.01" title="Current market price per unit — used for chart analysis"/></div>
           <div class="fg"><label>Date</label><input type="date" id="buy-date"/></div>
@@ -706,7 +706,7 @@ tr:hover td{background:rgba(255,255,255,.018)}
       <div class="isf" id="inv-sell-form">
         <div class="fr c5">
           <div class="fg"><label>Sealed SKU</label><select id="sell-sku"><option value="">— Select —</option></select></div>
-          <div class="fg"><label>Qty Sold</label><input type="number" id="sell-qty" value="1" min="1" oninput="updateSellPreview()"/></div>
+          <div class="fg"><label>Qty Sold</label><input type="number" id="sell-qty" value="1" min="0.01" step="any" oninput="updateSellPreview()"/></div>
           <div class="fg"><label>Sale Price / Unit ($)</label><input type="number" id="sell-price" placeholder="0.00" step="0.01"/></div>
           <div class="fg"><label>Date</label><input type="date" id="sell-date"/></div>
           <button class="btn btn-sale" onclick="openSaleModal()">Record Sale</button>
@@ -716,7 +716,7 @@ tr:hover td{background:rgba(255,255,255,.018)}
       <div class="isf" id="inv-break-form">
         <div class="fr c5">
           <div class="fg"><label>Sealed SKU to Break</label><select id="break-sku"><option value="">— Select —</option></select></div>
-          <div class="fg"><label>Qty to Break</label><input type="number" id="break-qty" value="1" min="1" oninput="updateBreakPreview()"/></div>
+          <div class="fg"><label>Qty to Break</label><input type="number" id="break-qty" value="1" min="0.01" step="any" oninput="updateBreakPreview()"/></div>
           <div class="fg"><label>Notes (optional)</label><input type="text" id="break-notes" placeholder="e.g. SV07 box pulls..."/></div>
           <div class="fg"><label>Date</label><input type="date" id="break-date"/></div>
           <button class="btn btn-break" onclick="openBreakModal()">✂ Break</button>
@@ -1375,11 +1375,11 @@ function receiveInventory(){
   const productType=document.getElementById('buy-prodtype').value.trim();
   const tcgSku=document.getElementById('buy-tcgsku').value.trim();
   const purchaseLocation=document.getElementById('buy-location').value.trim();
-  const qty=parseInt(document.getElementById('buy-qty').value);
+  const qty=parseFloat(document.getElementById('buy-qty').value);
   const cost=parseFloat(document.getElementById('buy-cost').value);
   const mktPrice=parseFloat(document.getElementById('buy-mktprice').value)||0;
   const date=document.getElementById('buy-date').value||todayIso();
-  if(!sku||!qty||qty<1||isNaN(cost)||cost<=0){alert('Please fill SKU, Qty and Unit Cost.');return;}
+  if(!sku||!qty||qty<=0||isNaN(cost)||cost<=0){alert('Please fill SKU, Qty and Unit Cost.');return;}
   lots.push({id:Date.now(),sku,date,qtyReceived:qty,qtyRemaining:qty,unitCost:cost,purchaseLocation:purchaseLocation||null,tcgSku:tcgSku||null});
   upsertSkuMeta(sku, game||null, expansion||null, productType||null, mktPrice>0?mktPrice:null, date, tcgSku||null);
   save();
@@ -1400,13 +1400,13 @@ function receiveInventory(){
 // SELL MODAL
 // ══════════════════════════════════════════════════════════════
 function updateSellPreview(){
-  const sku=document.getElementById('sell-sku').value,qty=parseInt(document.getElementById('sell-qty').value),el=document.getElementById('sell-preview');
+  const sku=document.getElementById('sell-sku').value,qty=parseFloat(document.getElementById('sell-qty').value),el=document.getElementById('sell-preview');
   if(!sku||!qty||qty<1){el.textContent='Select a SKU and qty to preview estimated COGS.';return;}
   const{cogs,canFulfill,available}=computeFIFO(sku,qty);
   el.innerHTML=!canFulfill?`<span style="color:var(--accent3)">⚠ Only ${available} unit(s) in stock.</span>`:`Est. COGS: <span style="color:var(--accent3)">${fmt$(cogs)}</span> &nbsp;·&nbsp; Avg: <span style="color:var(--muted)">${fmt$(cogs/qty)}/unit</span>`;
 }
 function openSaleModal(){
-  const sku=document.getElementById('sell-sku').value,qty=parseInt(document.getElementById('sell-qty').value),price=parseFloat(document.getElementById('sell-price').value),date=document.getElementById('sell-date').value||todayIso();
+  const sku=document.getElementById('sell-sku').value,qty=parseFloat(document.getElementById('sell-qty').value),price=parseFloat(document.getElementById('sell-price').value),date=document.getElementById('sell-date').value||todayIso();
   if(!sku){alert('Select a SKU.');return;} if(!qty||qty<1){alert('Enter a valid qty.');return;} if(isNaN(price)||price<=0){alert('Enter a valid sale price.');return;}
   const{cogs,breakdown,canFulfill,available}=computeFIFO(sku,qty);
   if(!canFulfill){alert(`Only ${available} unit(s) in stock for "${sku}".`);return;}
@@ -1435,13 +1435,13 @@ function confirmSale(){
 // BREAK MODAL
 // ══════════════════════════════════════════════════════════════
 function updateBreakPreview(){
-  const sku=document.getElementById('break-sku').value,qty=parseInt(document.getElementById('break-qty').value),el=document.getElementById('break-preview');
+  const sku=document.getElementById('break-sku').value,qty=parseFloat(document.getElementById('break-qty').value),el=document.getElementById('break-preview');
   if(!sku||!qty||qty<1){el.textContent='Cost is fully recognized at break time — no per-card tracking needed.';return;}
   const{cogs,canFulfill,available}=computeFIFO(sku,qty);
   el.innerHTML=!canFulfill?`<span style="color:var(--accent3)">⚠ Only ${available} unit(s) in stock.</span>`:`COGS to recognize: <span style="color:var(--break)">${fmt$(cogs)}</span> &nbsp;·&nbsp; <span style="color:var(--muted)">${fmt$(cogs/qty)}/unit</span> — fully expensed at break`;
 }
 function openBreakModal(){
-  const sku=document.getElementById('break-sku').value,qty=parseInt(document.getElementById('break-qty').value),notes=document.getElementById('break-notes').value.trim(),date=document.getElementById('break-date').value||todayIso();
+  const sku=document.getElementById('break-sku').value,qty=parseFloat(document.getElementById('break-qty').value),notes=document.getElementById('break-notes').value.trim(),date=document.getElementById('break-date').value||todayIso();
   if(!sku){alert('Select a sealed SKU.');return;} if(!qty||qty<1){alert('Enter a valid quantity.');return;}
   const{cogs,breakdown,canFulfill,available}=computeFIFO(sku,qty);
   if(!canFulfill){alert(`Only ${available} unit(s) in stock for "${sku}".`);return;}
@@ -1495,7 +1495,8 @@ function renderInventory(){
     if(invFilter==='in-stock'&&oh===0) return null;
     if(invFilter==='depleted'&&oh>0) return null;
     const iv=sl.reduce((s,l)=>s+(l.qtyRemaining*l.unitCost),0),avg=oh>0?iv/oh:0;
-    return `<tr><td style="font-weight:500${oh===0?';color:var(--muted)':''}">${sku}</td><td><span class="qty-b ${oh===0?'zero':''}">${oh}</span></td><td style="color:var(--muted)">${fmt$(avg)}</td><td style="color:var(--purchase)">${fmt$(iv)}</td></tr>`;
+    const fmtQty = q => Number.isInteger(q) ? q : q.toFixed(2);
+    return `<tr><td style="font-weight:500${oh===0?';color:var(--muted)':''}">${sku}</td><td><span class="qty-b ${oh===0?'zero':''}">${fmtQty(oh)}</span></td><td style="color:var(--muted)">${fmt$(avg)}</td><td style="color:var(--purchase)">${fmt$(iv)}</td></tr>`;
   }).filter(Boolean);
   tbody.innerHTML=rows.length?rows.join(''):'<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:22px">No inventory.</td></tr>';
 
@@ -1509,10 +1510,11 @@ function renderInventory(){
   const gp=totalRev-totalCOGS;
   const margin=totalRev>0?((gp/totalRev)*100).toFixed(1):'0.0';
 
+  const fmtUnits = q => Number.isInteger(q) ? q : q.toFixed(2);
   document.getElementById('inv-cost-val').textContent=fmt$(costVal);
-  document.getElementById('inv-units-hand').textContent=`${onHand} unit${onHand!==1?'s':''} on hand`;
+  document.getElementById('inv-units-hand').textContent=`${fmtUnits(onHand)} unit${onHand!==1?'s':''} on hand`;
   document.getElementById('inv-cogs').textContent=fmt$(totalCOGS);
-  document.getElementById('inv-units-sold').textContent=`${unitsSold} unit${unitsSold!==1?'s':''} sold`;
+  document.getElementById('inv-units-sold').textContent=`${fmtUnits(unitsSold)} unit${unitsSold!==1?'s':''} sold`;
   document.getElementById('inv-broken-cost').textContent=fmt$(brokenCost);
   document.getElementById('inv-units-broken').textContent=`${brokenUnits} unit${brokenUnits!==1?'s':''} broken`;
   document.getElementById('inv-revenue').textContent=fmt$(totalRev);
@@ -1528,12 +1530,13 @@ function renderLots(){
   const tbody=document.getElementById('inv-lots-body');
   tbody.innerHTML=filtered.length?filtered.map(l=>{
     const dep=l.qtyRemaining===0,pct=l.qtyReceived>0?Math.round((l.qtyRemaining/l.qtyReceived)*100):0;
+    const fmtQty = q => Number.isInteger(q) ? q : q.toFixed(2);
     const safeId=String(l.id).replace(/\./g,'_');
     return `<tr id="lot-row-${safeId}" style="${dep?'opacity:.5':''}">
       <td style="font-weight:500">${l.sku}</td>
       <td style="color:var(--muted)">${fmtDate(l.date)}</td>
-      <td>${l.qtyReceived}</td>
-      <td><span class="qty-b ${dep?'zero':''}">${l.qtyRemaining}</span><span style="font-size:9.5px;color:var(--muted);margin-left:4px">${dep?'depleted':`${pct}% left`}</span></td>
+      <td>${fmtQty(l.qtyReceived)}</td>
+      <td><span class="qty-b ${dep?'zero':''}">${fmtQty(l.qtyRemaining)}</span><span style="font-size:9.5px;color:var(--muted);margin-left:4px">${dep?'depleted':`${pct}% left`}</span></td>
       <td style="color:var(--purchase)">${fmt$(l.unitCost)}</td>
       <td style="color:var(--muted)">${l.purchaseLocation||'—'}</td>
       <td style="color:var(--muted)">${l.tcgSku||'—'}</td>
@@ -1551,8 +1554,8 @@ function editLot(safeId, id) {
   row.innerHTML = `
     <td><input type="text"   id="le-sku-${safeId}"  value="${l.sku.replace(/"/g,'&quot;')}" style="width:100%;min-width:160px"/></td>
     <td><input type="date"   id="le-date-${safeId}" value="${l.date||''}"/></td>
-    <td><input type="number" id="le-rcv-${safeId}"  value="${l.qtyReceived}"  min="0" style="width:70px"/></td>
-    <td><input type="number" id="le-rem-${safeId}"  value="${l.qtyRemaining}" min="0" style="width:70px"/></td>
+    <td><input type="number" id="le-rcv-${safeId}"  value="${l.qtyReceived}"  min="0" step="any" style="width:70px"/></td>
+    <td><input type="number" id="le-rem-${safeId}"  value="${l.qtyRemaining}" min="0" step="any" style="width:70px"/></td>
     <td><input type="number" id="le-cost-${safeId}" value="${l.unitCost}" step="0.01" min="0" style="width:80px"/></td>
     <td><input type="text"   id="le-loc-${safeId}"  value="${(l.purchaseLocation||'').replace(/"/g,'&quot;')}" placeholder="Location"/></td>
     <td><input type="text"   id="le-tsku-${safeId}" value="${(l.tcgSku||'').replace(/"/g,'&quot;')}" placeholder="TCG SKU"/></td>
@@ -1568,8 +1571,8 @@ function cancelEditLot() { renderLots(); }
 function saveLotEdit(safeId, id) {
   const sku    = document.getElementById('le-sku-'+safeId)?.value.trim();
   const date   = document.getElementById('le-date-'+safeId)?.value;
-  const rcv    = parseInt(document.getElementById('le-rcv-'+safeId)?.value) || 0;
-  const rem    = parseInt(document.getElementById('le-rem-'+safeId)?.value) || 0;
+  const rcv    = parseFloat(document.getElementById('le-rcv-'+safeId)?.value) || 0;
+  const rem    = parseFloat(document.getElementById('le-rem-'+safeId)?.value) || 0;
   const cost   = parseFloat(document.getElementById('le-cost-'+safeId)?.value) || 0;
   const loc    = document.getElementById('le-loc-'+safeId)?.value.trim();
   const tcgSku = document.getElementById('le-tsku-'+safeId)?.value.trim();
