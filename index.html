@@ -667,8 +667,8 @@ tr:hover td{background:rgba(255,255,255,.018)}
       <div class="card"><div class="lbl">Inventory at Cost</div><div class="val" id="inv-cost-val" style="color:var(--purchase)">$0.00</div><div class="sub" id="inv-units-hand">0 units on hand</div></div>
       <div class="card"><div class="lbl">Total COGS — Sealed Sales</div><div class="val" id="inv-cogs" style="color:var(--accent3)">$0.00</div><div class="sub" id="inv-units-sold">0 sold</div></div>
       <div class="card hl-break"><div class="lbl">COGS — Singles Breaks</div><div class="val" id="inv-broken-cost" style="color:var(--break)">$0.00</div><div class="sub" id="inv-units-broken">0 units broken</div></div>
-      <div class="card"><div class="lbl">Sealed Sales Revenue</div><div class="val" id="inv-revenue" style="color:var(--sale)">$0.00</div><div class="sub" id="inv-txn-count">0 transactions</div></div>
-      <div class="card hl"><div class="lbl">Sealed Gross Profit</div><div class="val" id="inv-gp">$0.00</div><div class="sub" id="inv-margin">0.0% margin</div></div>
+      <div class="card"><div class="lbl">Sealed Net Revenue</div><div class="val" id="inv-revenue" style="color:var(--sale)">$0.00</div><div class="sub" id="inv-txn-count">0 transactions</div></div>
+      <div class="card hl"><div class="lbl">Sealed Net Profit</div><div class="val" id="inv-gp">$0.00</div><div class="sub" id="inv-margin">0.0% net margin</div></div>
     </div>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
       <span style="font-size:10.5px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase">Filter COGS by Year</span>
@@ -861,7 +861,7 @@ tr:hover td{background:rgba(255,255,255,.018)}
 
     <div class="sh"><span class="st">Sales Ledger</span><span id="ledger-count" style="font-size:10.5px;color:var(--muted)"></span><select id="sales-sku-filter" onchange="renderSalesLedger()" style="max-width:200px;padding:4px 9px;font-size:10.5px"><option value="">All SKUs</option></select><input type="date" id="sales-date-from" onchange="renderSalesLedger()" style="padding:3px 7px;font-size:10.5px" title="From date"/><input type="date" id="sales-date-to" onchange="renderSalesLedger()" style="padding:3px 7px;font-size:10.5px" title="To date"/><button class="btn btn-sm btn-outline" onclick="exportLedger('sales')" style="margin-left:4px">⬇ Export CSV</button></div>
     <div class="tw sc" style="max-height:280px;margin-bottom:20px">
-      <table><thead><tr><th>Date</th><th>SKU</th><th>Qty</th><th>Sale/Unit</th><th>Revenue</th><th>COGS (FIFO)</th><th>Gross Profit</th><th>Margin</th><th></th></tr></thead>
+      <table><thead><tr><th>Date</th><th>SKU</th><th>Qty</th><th>Sale/Unit</th><th>Gross Revenue</th><th>TCG Fees</th><th>Net Proceeds</th><th>COGS (FIFO)</th><th>Net Profit</th><th>Margin</th><th></th></tr></thead>
       <tbody id="sales-ledger-body"></tbody></table>
     </div>
 
@@ -1211,10 +1211,14 @@ tr:hover td{background:rgba(255,255,255,.018)}
     <div class="modal-sub" id="m-sale-sub"></div>
     <div class="fifo-box" id="m-sale-fifo"></div>
     <div class="modal-grid mg3">
-      <div class="fg"><label>Revenue</label><input id="m-sale-rev" readonly style="color:var(--sale)"/></div>
+      <div class="fg"><label>Gross Revenue</label><input id="m-sale-rev" readonly style="color:var(--sale)"/></div>
+      <div class="fg"><label>TCGPlayer Fees (13.25%)</label><input id="m-sale-fees" readonly style="color:var(--accent3)"/></div>
+      <div class="fg"><label>Net Proceeds</label><input id="m-sale-net" readonly style="color:var(--sale)"/></div>
       <div class="fg"><label>COGS (FIFO)</label><input id="m-sale-cogs" readonly style="color:var(--accent3)"/></div>
-      <div class="fg"><label>Gross Profit</label><input id="m-sale-gp" readonly/></div>
+      <div class="fg"><label>Net Profit</label><input id="m-sale-gp" readonly/></div>
+      <div class="fg"><label>Net Margin</label><input id="m-sale-margin" readonly style="color:var(--muted)"/></div>
     </div>
+    <div style="font-size:9.5px;color:var(--muted);margin-bottom:12px">Fees: 10.75% platform + 2.5% payment processing. Net Profit = Net Proceeds − COGS.</div>
     <div class="modal-actions">
       <button class="btn btn-danger btn-sm" onclick="closeModal('sale-modal')">Cancel</button>
       <button class="btn btn-sale btn-sm" onclick="confirmSale()">Confirm &amp; Record</button>
@@ -1266,6 +1270,9 @@ let invFilter     = 'all';
 let singlesFilter = 'all';
 let pendingSale   = null;
 let pendingBreak  = null;
+
+// TCGPlayer fee assumption: 10.75% platform + 2.5% payment processing
+const TCG_FEE_RATE = 0.1325;
 
 // CSV import state
 let csvHeaders   = [];
@@ -1430,20 +1437,27 @@ function openSaleModal(){
   if(!sku){alert('Select a SKU.');return;} if(!qty||qty<=0){alert('Enter a valid qty.');return;} if(isNaN(price)||price<=0){alert('Enter a valid sale price.');return;}
   const{cogs,breakdown,canFulfill,available}=computeFIFO(sku,qty);
   if(!canFulfill){alert(`Only ${available} unit(s) in stock for "${sku}".`);return;}
-  const revenue=qty*price,gp=revenue-cogs;
-  pendingSale={sku,qty,price,date,cogs,revenue,gp,breakdown};
+  const revenue=qty*price;
+  const fees=parseFloat((revenue*TCG_FEE_RATE).toFixed(2));
+  const netProceeds=parseFloat((revenue-fees).toFixed(2));
+  const netProfit=parseFloat((netProceeds-cogs).toFixed(2));
+  const netMargin=netProceeds>0?((netProfit/netProceeds)*100).toFixed(1):'0.0';
+  pendingSale={sku,qty,price,date,cogs,revenue,fees,netProceeds,netProfit,breakdown};
   document.getElementById('m-sale-sub').textContent=`${qty}× "${sku}" @ ${fmt$(price)}/unit on ${fmtDate(date)}`;
   document.getElementById('m-sale-fifo').innerHTML=buildFIFOHtml(breakdown);
   document.getElementById('m-sale-rev').value=fmt$(revenue);
+  document.getElementById('m-sale-fees').value=fmt$(fees);
+  document.getElementById('m-sale-net').value=fmt$(netProceeds);
   document.getElementById('m-sale-cogs').value=fmt$(cogs);
-  const gpEl=document.getElementById('m-sale-gp'); gpEl.value=fmt$(gp); gpEl.style.color=gp>=0?'var(--sale)':'var(--accent3)';
+  const gpEl=document.getElementById('m-sale-gp'); gpEl.value=fmt$(netProfit); gpEl.style.color=netProfit>=0?'var(--sale)':'var(--accent3)';
+  document.getElementById('m-sale-margin').value=netMargin+'%';
   document.getElementById('sale-modal').classList.add('open');
 }
 function confirmSale(){
   if(!pendingSale) return;
-  const{sku,qty,price,date,cogs,revenue,gp,breakdown}=pendingSale;
+  const{sku,qty,price,date,cogs,revenue,fees,netProceeds,netProfit,breakdown}=pendingSale;
   applyFIFO(breakdown);
-  sales.push({id:Date.now(),date,sku,qty,salePrice:price,revenue,cogs,breakdown});
+  sales.push({id:Date.now(),date,sku,qty,salePrice:price,revenue,fees:fees||0,netProceeds:netProceeds||revenue,cogs,breakdown});
   save(); closeModal('sale-modal');
   document.getElementById('sell-qty').value='1'; document.getElementById('sell-price').value=''; document.getElementById('sell-date').value=todayIso();
   document.getElementById('sell-preview').textContent='Select a SKU and qty to preview estimated COGS.';
@@ -1540,9 +1554,11 @@ function renderInventory(){
   const brokenCost=fBreaks.reduce((s,b)=>s+b.cogs,0);
   const brokenUnits=fBreaks.reduce((s,b)=>s+b.qty,0);
   const totalRev=fSales.reduce((s,s2)=>s+s2.revenue,0);
+  const totalFees=fSales.reduce((s,s2)=>s+(s2.fees!=null?s2.fees:s2.revenue*TCG_FEE_RATE),0);
+  const totalNet=fSales.reduce((s,s2)=>s+(s2.netProceeds!=null?s2.netProceeds:s2.revenue*(1-TCG_FEE_RATE)),0);
   const unitsSold=fSales.reduce((s,s2)=>s+s2.qty,0);
-  const gp=totalRev-totalCOGS;
-  const margin=totalRev>0?((gp/totalRev)*100).toFixed(1):'0.0';
+  const gp=totalNet-totalCOGS;
+  const margin=totalNet>0?((gp/totalNet)*100).toFixed(1):'0.0';
 
   const fmtUnits = q => Number.isInteger(q) ? q : q.toFixed(2);
   document.getElementById('inv-cost-val').textContent=fmt$(costVal);
@@ -1551,11 +1567,11 @@ function renderInventory(){
   document.getElementById('inv-units-sold').textContent=`${fmtUnits(unitsSold)} unit${unitsSold!==1?'s':''} sold${yearLabel}`;
   document.getElementById('inv-broken-cost').textContent=fmt$(brokenCost);
   document.getElementById('inv-units-broken').textContent=`${fmtUnits(brokenUnits)} unit${brokenUnits!==1?'s':''} broken${yearLabel}`;
-  document.getElementById('inv-revenue').textContent=fmt$(totalRev);
-  document.getElementById('inv-txn-count').textContent=`${fSales.length} transaction${fSales.length!==1?'s':''}${yearLabel}`;
+  document.getElementById('inv-revenue').textContent=fmt$(totalNet);
+  document.getElementById('inv-txn-count').textContent=`${fSales.length} transaction${fSales.length!==1?'s':''}${yearLabel} · ${fmt$(totalFees)} fees`;
   document.getElementById('inv-gp').textContent=fmt$(gp);
   document.getElementById('inv-gp').style.color=gp>=0?'var(--sale)':'var(--accent3)';
-  document.getElementById('inv-margin').textContent=`${margin}% margin${yearLabel}`;
+  document.getElementById('inv-margin').textContent=`${margin}% net margin${yearLabel}`;
   const noteEl=document.getElementById('cogs-year-note');
   if(noteEl) noteEl.textContent=selYear?`COGS, revenue and profit filtered to ${selYear}. Inventory at cost reflects current on-hand.`:'';
   updateHeader();
@@ -1640,17 +1656,35 @@ function renderSalesLedger(){
   const allSkus=[...new Set(sales.map(s=>s.sku))].sort();
   if(filterEl){const prev=filterEl.value;filterEl.innerHTML='<option value="">All SKUs</option>'+allSkus.map(s=>`<option value="${s}"${s===prev?' selected':''}>${s}</option>`).join('');}
   const filtered=[...sales].filter(s=>
-    (!f||s.sku===f)&&
-    (!from||s.date>=from)&&
-    (!to||s.date<=to)
+    (!f||s.sku===f)&&(!from||s.date>=from)&&(!to||s.date<=to)
   ).sort((a,b)=>b.date.localeCompare(a.date));
   const countEl=document.getElementById('ledger-count');
   const totalRev=filtered.reduce((s,x)=>s+x.revenue,0);
+  const totalFees=filtered.reduce((s,x)=>s+(x.fees||x.revenue*TCG_FEE_RATE),0);
+  const totalNet=filtered.reduce((s,x)=>s+(x.netProceeds||x.revenue-x.revenue*TCG_FEE_RATE),0);
   const totalCogs=filtered.reduce((s,x)=>s+x.cogs,0);
-  const totalGp=totalRev-totalCogs;
-  if(countEl) countEl.textContent=`${filtered.length} sale${filtered.length!==1?'s':''}${f||from||to?' — filtered':''} · Rev: ${fmt$(totalRev)} · COGS: ${fmt$(totalCogs)} · GP: ${fmt$(totalGp)}`;
+  const totalProfit=totalNet-totalCogs;
+  if(countEl) countEl.textContent=`${filtered.length} sale${filtered.length!==1?'s':''}${f||from||to?' — filtered':''} · Net: ${fmt$(totalNet)} · COGS: ${fmt$(totalCogs)} · Profit: ${fmt$(totalProfit)}`;
   const tbody=document.getElementById('sales-ledger-body');
-  tbody.innerHTML=filtered.length?filtered.map(s=>{const gp=s.revenue-s.cogs,margin=s.revenue>0?((gp/s.revenue)*100).toFixed(1):'0.0';return `<tr><td style="color:var(--muted)">${fmtDate(s.date)}</td><td style="font-weight:500">${s.sku}</td><td>${s.qty}</td><td>${fmt$(s.salePrice)}</td><td class="gp">${fmt$(s.revenue)}</td><td class="gn">${fmt$(s.cogs)}</td><td class="${gp>=0?'gp':'gn'}">${fmt$(gp)}</td><td style="color:var(--muted)">${margin}%</td><td><button class="btn btn-sm btn-danger" onclick="deleteSale(${s.id})">✕</button></td></tr>`;}).join(''):'<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:22px">No sales.</td></tr>';
+  tbody.innerHTML=filtered.length?filtered.map(s=>{
+    const fees=s.fees!=null?s.fees:parseFloat((s.revenue*TCG_FEE_RATE).toFixed(2));
+    const net=s.netProceeds!=null?s.netProceeds:parseFloat((s.revenue-fees).toFixed(2));
+    const profit=net-s.cogs;
+    const margin=net>0?((profit/net)*100).toFixed(1):'0.0';
+    return `<tr>
+      <td style="color:var(--muted)">${fmtDate(s.date)}</td>
+      <td style="font-weight:500">${s.sku}</td>
+      <td>${s.qty}</td>
+      <td>${fmt$(s.salePrice)}</td>
+      <td class="gp">${fmt$(s.revenue)}</td>
+      <td style="color:var(--accent3)">${fmt$(fees)}</td>
+      <td class="gp">${fmt$(net)}</td>
+      <td class="gn">${fmt$(s.cogs)}</td>
+      <td class="${profit>=0?'gp':'gn'}">${fmt$(profit)}</td>
+      <td style="color:var(--muted)">${margin}%</td>
+      <td><button class="btn btn-sm btn-danger" onclick="deleteSale(${s.id})">✕</button></td>
+    </tr>`;
+  }).join(''):'<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:22px">No sales.</td></tr>';
 }
 function deleteSale(id) {
   const sale = sales.find(s => String(s.id) === String(id));
@@ -1745,11 +1779,13 @@ function exportLedger(type) {
   } else if (type === 'sales') {
     const data = sales.filter(s=>(!sku||s.sku===sku)&&(!from||s.date>=from)&&(!to||s.date<=to))
       .sort((a,b)=>b.date.localeCompare(a.date));
-    headers = ['Date','SKU','Qty','Sale Price/Unit','Revenue','COGS','Gross Profit','Margin %'];
+    headers = ['Date','SKU','Qty','Sale Price/Unit','Gross Revenue','TCG Fees (13.25%)','Net Proceeds','COGS','Net Profit','Net Margin %'];
     rows = data.map(s => {
-      const gp = s.revenue - s.cogs;
-      const margin = s.revenue > 0 ? ((gp/s.revenue)*100).toFixed(1) : '0.0';
-      return [s.date, s.sku, s.qty, s.salePrice.toFixed(2), s.revenue.toFixed(2), s.cogs.toFixed(2), gp.toFixed(2), margin];
+      const fees = s.fees!=null ? s.fees : parseFloat((s.revenue*TCG_FEE_RATE).toFixed(2));
+      const net  = s.netProceeds!=null ? s.netProceeds : parseFloat((s.revenue-fees).toFixed(2));
+      const profit = net - s.cogs;
+      const margin = net > 0 ? ((profit/net)*100).toFixed(1) : '0.0';
+      return [s.date, s.sku, s.qty, s.salePrice.toFixed(2), s.revenue.toFixed(2), fees.toFixed(2), net.toFixed(2), s.cogs.toFixed(2), profit.toFixed(2), margin];
     });
     filename = `sales${sku?'-'+sku:''}${from?'-from-'+from:''}${to?'-to-'+to:''}.csv`;
   } else {
@@ -4614,6 +4650,19 @@ updateHeader();
 setInterval(renderChecklist,60000);
 sbInit();
 document.getElementById('sb-modal').addEventListener('click', e => { if(e.target===e.currentTarget) closeSbModal(); });
+
+// ── Year-end backup reminder — auto-creates Dec 31 task each year ──
+(function checkYearEndReminder(){
+  const thisYear = new Date().getFullYear();
+  const deadline = `${thisYear}-12-31`;
+  const title    = 'Export year-end backup (⬇ Export Backup in toolbar) — save as tcghq-backup-' + thisYear + '-12-31.json for tax records';
+  const already  = tasks.some(t => t.deadline === deadline && t.title.includes('year-end backup'));
+  if (!already) {
+    tasks.push({ id: Date.now(), title, deadline, priority: 'high', done: false, completedAt: null });
+    save();
+    renderChecklist();
+  }
+})();
 </script>
 </body>
 </html>
