@@ -846,19 +846,19 @@ tr:hover td{background:rgba(255,255,255,.018)}
       </div>
     </div>
 
-    <div class="sh"><span class="st">Receipt Ledger</span><span id="receipt-ledger-count" style="font-size:10.5px;color:var(--muted)"></span></div>
+    <div class="sh"><span class="st">Receipt Ledger</span><span id="receipt-ledger-count" style="font-size:10.5px;color:var(--muted)"></span><select id="receipt-sku-filter" onchange="renderReceiptLedger()" style="max-width:200px;padding:4px 9px;font-size:10.5px"><option value="">All SKUs</option></select></div>
     <div class="tw sc" style="max-height:260px;margin-bottom:20px">
       <table><thead><tr><th>Date</th><th>SKU</th><th>Qty Received</th><th>Qty Remaining</th><th>Unit Cost</th><th>Total Cost</th><th>Location</th><th>TCG SKU</th><th></th></tr></thead>
       <tbody id="receipt-ledger-body"></tbody></table>
     </div>
 
-    <div class="sh"><span class="st">Sales Ledger</span><span id="ledger-count" style="font-size:10.5px;color:var(--muted)"></span></div>
+    <div class="sh"><span class="st">Sales Ledger</span><span id="ledger-count" style="font-size:10.5px;color:var(--muted)"></span><select id="sales-sku-filter" onchange="renderSalesLedger()" style="max-width:200px;padding:4px 9px;font-size:10.5px"><option value="">All SKUs</option></select></div>
     <div class="tw sc" style="max-height:280px;margin-bottom:20px">
       <table><thead><tr><th>Date</th><th>SKU</th><th>Qty</th><th>Sale/Unit</th><th>Revenue</th><th>COGS (FIFO)</th><th>Gross Profit</th><th>Margin</th><th></th></tr></thead>
       <tbody id="sales-ledger-body"></tbody></table>
     </div>
 
-    <div class="sh"><span class="st" style="color:var(--break)">Break Ledger</span><span id="break-ledger-count" style="font-size:10.5px;color:var(--muted)"></span></div>
+    <div class="sh"><span class="st" style="color:var(--break)">Break Ledger</span><span id="break-ledger-count" style="font-size:10.5px;color:var(--muted)"></span><select id="break-sku-filter-ledger" onchange="renderBreakLedger()" style="max-width:200px;padding:4px 9px;font-size:10.5px"><option value="">All SKUs</option></select></div>
     <div class="tw sc" style="max-height:240px">
       <table><thead><tr><th>Date</th><th>Sealed SKU</th><th>Units Broken</th><th>COGS Recognized</th><th>Cost/Unit</th><th>Notes</th><th></th></tr></thead>
       <tbody id="break-ledger-body"></tbody></table>
@@ -1619,29 +1619,45 @@ function saveLotEdit(safeId, id) {
   sbPushSealed();
 }
 function renderSalesLedger(){
-  const sorted=[...sales].sort((a,b)=>b.date.localeCompare(a.date));
-  document.getElementById('ledger-count').textContent=`${sales.length} sale${sales.length!==1?'s':''}`;
+  const filterEl = document.getElementById('sales-sku-filter');
+  const f = filterEl?.value || '';
+  const allSkus = [...new Set(sales.map(s=>s.sku))].sort();
+  if(filterEl){ const prev=filterEl.value; filterEl.innerHTML='<option value="">All SKUs</option>'+allSkus.map(s=>`<option value="${s}"${s===prev?' selected':''}>${s}</option>`).join(''); }
+  const filtered = [...sales].filter(s=>!f||s.sku===f).sort((a,b)=>b.date.localeCompare(a.date));
+  const countEl = document.getElementById('ledger-count');
+  if(countEl) countEl.textContent=`${filtered.length} sale${filtered.length!==1?'s':''}${f?' — filtered':''}`;
   const tbody=document.getElementById('sales-ledger-body');
-  tbody.innerHTML=sorted.length?sorted.map(s=>{const gp=s.revenue-s.cogs,margin=s.revenue>0?((gp/s.revenue)*100).toFixed(1):'0.0';return `<tr><td style="color:var(--muted)">${fmtDate(s.date)}</td><td style="font-weight:500">${s.sku}</td><td>${s.qty}</td><td>${fmt$(s.salePrice)}</td><td class="gp">${fmt$(s.revenue)}</td><td class="gn">${fmt$(s.cogs)}</td><td class="${gp>=0?'gp':'gn'}">${fmt$(gp)}</td><td style="color:var(--muted)">${margin}%</td><td><button class="btn btn-sm btn-danger" onclick="deleteSale(${s.id})">✕</button></td></tr>`;}).join(''):'<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:22px">No sales.</td></tr>';
+  tbody.innerHTML=filtered.length?filtered.map(s=>{const gp=s.revenue-s.cogs,margin=s.revenue>0?((gp/s.revenue)*100).toFixed(1):'0.0';return `<tr><td style="color:var(--muted)">${fmtDate(s.date)}</td><td style="font-weight:500">${s.sku}</td><td>${s.qty}</td><td>${fmt$(s.salePrice)}</td><td class="gp">${fmt$(s.revenue)}</td><td class="gn">${fmt$(s.cogs)}</td><td class="${gp>=0?'gp':'gn'}">${fmt$(gp)}</td><td style="color:var(--muted)">${margin}%</td><td><button class="btn btn-sm btn-danger" onclick="deleteSale(${s.id})">✕</button></td></tr>`;}).join(''):'<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:22px">No sales.</td></tr>';
 }
-function deleteSale(id){if(!confirm('Delete sale? Lots will NOT be restored.')) return;sales=sales.filter(s=>s.id!==id);save();renderSalesLedger();renderInventory();updateHeader();}
+function deleteSale(id){if(!confirm('Delete sale? Lots will NOT be restored.')) return;sales=sales.filter(s=>s.id!==id);save();renderSalesLedger();renderInventory();updateHeader();sbPushSealed();}
 function renderBreakLedger(){
-  const sorted=[...breaks].sort((a,b)=>b.date.localeCompare(a.date));
-  document.getElementById('break-ledger-count').textContent=`${breaks.length} break${breaks.length!==1?'s':''}`;
+  const filterEl = document.getElementById('break-sku-filter-ledger');
+  const f = filterEl?.value || '';
+  const allSkus = [...new Set(breaks.map(b=>b.sku))].sort();
+  if(filterEl){ const prev=filterEl.value; filterEl.innerHTML='<option value="">All SKUs</option>'+allSkus.map(s=>`<option value="${s}"${s===prev?' selected':''}>${s}</option>`).join(''); }
+  const filtered = [...breaks].filter(b=>!f||b.sku===f).sort((a,b)=>b.date.localeCompare(a.date));
+  const countEl = document.getElementById('break-ledger-count');
+  if(countEl) countEl.textContent=`${filtered.length} break${filtered.length!==1?'s':''}${f?' — filtered':''}`;
   const tbody=document.getElementById('break-ledger-body');
-  tbody.innerHTML=sorted.length?sorted.map(b=>`<tr><td style="color:var(--muted)">${fmtDate(b.date)}</td><td style="font-weight:500">${b.sku}</td><td>${b.qty}</td><td style="color:var(--break)">${fmt$(b.cogs)}</td><td style="color:var(--muted)">${fmt$(b.costPerUnit)}/unit</td><td style="color:var(--muted)">${b.notes||'—'}</td><td><button class="btn btn-sm btn-danger" onclick="deleteBreak(${b.id})">✕</button></td></tr>`).join(''):'<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:22px">No breaks.</td></tr>';
+  tbody.innerHTML=filtered.length?filtered.map(b=>`<tr><td style="color:var(--muted)">${fmtDate(b.date)}</td><td style="font-weight:500">${b.sku}</td><td>${b.qty}</td><td style="color:var(--break)">${fmt$(b.cogs)}</td><td style="color:var(--muted)">${fmt$(b.costPerUnit)}/unit</td><td style="color:var(--muted)">${b.notes||'—'}</td><td><button class="btn btn-sm btn-danger" onclick="deleteBreak(${b.id})">✕</button></td></tr>`).join(''):'<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:22px">No breaks.</td></tr>';
 }
 function deleteBreak(id){if(!confirm('Delete break? Lots will NOT be restored.')) return;breaks=breaks.filter(b=>b.id!==id);save();renderBreakLedger();renderInventory();updateHeader();sbPushSealed();}
 
 function renderReceiptLedger(){
-  const sorted=[...lots].sort((a,b)=>b.date.localeCompare(a.date)||String(b.id).localeCompare(String(a.id)));
+  const filterEl = document.getElementById('receipt-sku-filter');
+  const f = filterEl?.value || '';
+  // Populate filter dropdown
+  const allSkus = [...new Set(lots.map(l=>l.sku))].sort();
+  if(filterEl){ const prev=filterEl.value; filterEl.innerHTML='<option value="">All SKUs</option>'+allSkus.map(s=>`<option value="${s}"${s===prev?' selected':''}>${s}</option>`).join(''); }
+
+  const filtered = [...lots].filter(l=>!f||l.sku===f).sort((a,b)=>b.date.localeCompare(a.date)||String(b.id).localeCompare(String(a.id)));
   const fmtQty = q => Number.isInteger(q) ? q : parseFloat(q).toFixed(2);
   const tbody=document.getElementById('receipt-ledger-body');
   if(!tbody) return;
-  const total=lots.reduce((s,l)=>s+(l.qtyReceived*l.unitCost),0);
+  const total=filtered.reduce((s,l)=>s+(l.qtyReceived*l.unitCost),0);
   const el=document.getElementById('receipt-ledger-count');
-  if(el) el.textContent=`${lots.length} receipt${lots.length!==1?'s':''} · ${fmt$(total)} total cost`;
-  tbody.innerHTML=sorted.length?sorted.map(l=>{
+  if(el) el.textContent=`${filtered.length} receipt${filtered.length!==1?'s':''} · ${fmt$(total)} total cost${f?' — filtered':''}`;
+  tbody.innerHTML=filtered.length?filtered.map(l=>{
     const safeId=String(l.id).replace(/\./g,'_');
     const totalCost=l.qtyReceived*l.unitCost;
     return `<tr>
