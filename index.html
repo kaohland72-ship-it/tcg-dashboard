@@ -846,6 +846,12 @@ tr:hover td{background:rgba(255,255,255,.018)}
       </div>
     </div>
 
+    <div class="sh"><span class="st">Receipt Ledger</span><span id="receipt-ledger-count" style="font-size:10.5px;color:var(--muted)"></span></div>
+    <div class="tw sc" style="max-height:260px;margin-bottom:20px">
+      <table><thead><tr><th>Date</th><th>SKU</th><th>Qty Received</th><th>Qty Remaining</th><th>Unit Cost</th><th>Total Cost</th><th>Location</th><th>TCG SKU</th><th></th></tr></thead>
+      <tbody id="receipt-ledger-body"></tbody></table>
+    </div>
+
     <div class="sh"><span class="st">Sales Ledger</span><span id="ledger-count" style="font-size:10.5px;color:var(--muted)"></span></div>
     <div class="tw sc" style="max-height:280px;margin-bottom:20px">
       <table><thead><tr><th>Date</th><th>SKU</th><th>Qty</th><th>Sale/Unit</th><th>Revenue</th><th>COGS (FIFO)</th><th>Gross Profit</th><th>Margin</th><th></th></tr></thead>
@@ -1283,7 +1289,7 @@ function switchTab(id, btn) {
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+id).classList.add('active');
   btn.classList.add('active');
-  if (id==='inventory') { populateInvDropdowns(); renderInventory(); renderLots(); renderSalesLedger(); renderBreakLedger(); renderInvCharts(); }
+  if (id==='inventory') { populateInvDropdowns(); renderInventory(); renderLots(); renderReceiptLedger(); renderSalesLedger(); renderBreakLedger(); renderInvCharts(); }
   if (id==='singles')   { renderSingles(); renderSinglesKPIs(); renderImportHistory(); renderSinglesCharts(); renderSnapUI(); }
   if (id==='sold')      { renderSold(); renderSoldKPIs(); renderSoldImportHist(); }
   if (id==='revenue')   { renderRevenue(); renderRevKPIs(); renderRevChart(); renderRevImportHist(); }
@@ -1392,7 +1398,7 @@ function receiveInventory(){
   document.getElementById('buy-qty').value='1';
   document.getElementById('buy-cost').value='';
   document.getElementById('buy-mktprice').value='';
-  populateInvDropdowns(); renderInventory(); renderLots(); renderSkuMetaList(); renderInvCharts(); updateHeader();
+  populateInvDropdowns(); renderInventory(); renderLots(); renderReceiptLedger(); renderSkuMetaList(); renderInvCharts(); updateHeader();
   sbPushSealed();
 }
 
@@ -1427,7 +1433,7 @@ function confirmSale(){
   save(); closeModal('sale-modal');
   document.getElementById('sell-qty').value='1'; document.getElementById('sell-price').value=''; document.getElementById('sell-date').value=todayIso();
   document.getElementById('sell-preview').textContent='Select a SKU and qty to preview estimated COGS.';
-  populateInvDropdowns(); renderInventory(); renderLots(); renderSalesLedger(); updateHeader(); renderCalendar();
+  populateInvDropdowns(); renderInventory(); renderLots(); renderReceiptLedger(); renderSalesLedger(); updateHeader(); renderCalendar();
   sbPushSealed();
 }
 
@@ -1460,7 +1466,7 @@ function confirmBreak(){
   save(); closeModal('break-modal');
   document.getElementById('break-qty').value='1'; document.getElementById('break-notes').value=''; document.getElementById('break-date').value=todayIso();
   document.getElementById('break-preview').textContent='Cost is fully recognized at break time — no per-card tracking needed.';
-  populateInvDropdowns(); renderInventory(); renderLots(); renderBreakLedger(); updateHeader(); renderCalendar();
+  populateInvDropdowns(); renderInventory(); renderLots(); renderReceiptLedger(); renderBreakLedger(); updateHeader(); renderCalendar();
   sbPushSealed();
 }
 
@@ -1541,8 +1547,7 @@ function renderLots(){
       <td style="color:var(--muted)">${l.purchaseLocation||'—'}</td>
       <td style="color:var(--muted)">${l.tcgSku||'—'}</td>
       <td style="white-space:nowrap">
-        <button class="btn btn-sm btn-outline" onclick="editLot('${safeId}',${l.id})" title="Edit lot" style="margin-right:4px">✎</button>
-        <button class="btn btn-sm btn-danger" onclick="deleteLot('${safeId}',${l.id})" title="Delete lot">✕</button>
+        <button class="btn btn-sm btn-outline" onclick="editLot('${safeId}',${l.id})" title="Edit lot">✎</button>
       </td>
     </tr>`;
   }).join(''):'<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:22px">No lots.</td></tr>';
@@ -1626,7 +1631,50 @@ function renderBreakLedger(){
   const tbody=document.getElementById('break-ledger-body');
   tbody.innerHTML=sorted.length?sorted.map(b=>`<tr><td style="color:var(--muted)">${fmtDate(b.date)}</td><td style="font-weight:500">${b.sku}</td><td>${b.qty}</td><td style="color:var(--break)">${fmt$(b.cogs)}</td><td style="color:var(--muted)">${fmt$(b.costPerUnit)}/unit</td><td style="color:var(--muted)">${b.notes||'—'}</td><td><button class="btn btn-sm btn-danger" onclick="deleteBreak(${b.id})">✕</button></td></tr>`).join(''):'<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:22px">No breaks.</td></tr>';
 }
-function deleteBreak(id){if(!confirm('Delete break? Lots will NOT be restored.')) return;breaks=breaks.filter(b=>b.id!==id);save();renderBreakLedger();renderInventory();updateHeader();}
+function deleteBreak(id){if(!confirm('Delete break? Lots will NOT be restored.')) return;breaks=breaks.filter(b=>b.id!==id);save();renderBreakLedger();renderInventory();updateHeader();sbPushSealed();}
+
+function renderReceiptLedger(){
+  const sorted=[...lots].sort((a,b)=>b.date.localeCompare(a.date)||String(b.id).localeCompare(String(a.id)));
+  const fmtQty = q => Number.isInteger(q) ? q : parseFloat(q).toFixed(2);
+  const tbody=document.getElementById('receipt-ledger-body');
+  if(!tbody) return;
+  const total=lots.reduce((s,l)=>s+(l.qtyReceived*l.unitCost),0);
+  const el=document.getElementById('receipt-ledger-count');
+  if(el) el.textContent=`${lots.length} receipt${lots.length!==1?'s':''} · ${fmt$(total)} total cost`;
+  tbody.innerHTML=sorted.length?sorted.map(l=>{
+    const safeId=String(l.id).replace(/\./g,'_');
+    const totalCost=l.qtyReceived*l.unitCost;
+    return `<tr>
+      <td style="color:var(--muted)">${fmtDate(l.date)}</td>
+      <td style="font-weight:500">${l.sku}</td>
+      <td>${fmtQty(l.qtyReceived)}</td>
+      <td><span class="${l.qtyRemaining===0?'qty-b zero':'qty-b'}">${fmtQty(l.qtyRemaining)}</span></td>
+      <td style="color:var(--purchase)">${fmt$(l.unitCost)}</td>
+      <td style="color:var(--purchase)">${fmt$(totalCost)}</td>
+      <td style="color:var(--muted)">${l.purchaseLocation||'—'}</td>
+      <td style="color:var(--muted)">${l.tcgSku||'—'}</td>
+      <td><button class="btn btn-sm btn-danger" onclick="deleteLot('${safeId}',${l.id})" title="Delete receipt">✕</button></td>
+    </tr>`;
+  }).join(''):'<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:22px">No receipts.</td></tr>';
+}
+
+function deleteLot(safeId, id) {
+  const lot = lots.find(l => String(l.id) === String(id));
+  if (!lot) return;
+  const fmtQty = q => Number.isInteger(q) ? q : parseFloat(q).toFixed(2);
+  const consumed = lot.qtyReceived - lot.qtyRemaining;
+  const msg = `Delete this receipt?\n\n${lot.sku}\nDate: ${fmtDate(lot.date)}\nQty Received: ${fmtQty(lot.qtyReceived)}\nQty Remaining: ${fmtQty(lot.qtyRemaining)}\nUnit Cost: ${fmt$(lot.unitCost)}\nTotal Cost: ${fmt$(lot.qtyReceived*lot.unitCost)}${consumed>0?`\n\n⚠ ${fmtQty(consumed)} unit(s) from this lot were already consumed by sales or breaks. Those COGS figures will not be recalculated.`:''}\n\nOnly delete if this was entered in error.`;
+  if (!confirm(msg)) return;
+  lots = lots.filter(l => String(l.id) !== String(id));
+  save();
+  populateInvDropdowns();
+  renderInventory();
+  renderLots();
+  renderReceiptLedger();
+  renderInvCharts();
+  updateHeader();
+  sbPushSealed();
+}
 
 // ══════════════════════════════════════════════════════════════
 // CSV IMPORT — PARSE
@@ -4014,6 +4062,7 @@ async function sbPullSealed() {
     populateInvDropdowns();
     renderInventory();
     renderLots();
+    renderReceiptLedger();
     renderSalesLedger();
     renderBreakLedger();
     renderInvCharts();
