@@ -1407,13 +1407,13 @@ function receiveInventory(){
 // ══════════════════════════════════════════════════════════════
 function updateSellPreview(){
   const sku=document.getElementById('sell-sku').value,qty=parseFloat(document.getElementById('sell-qty').value),el=document.getElementById('sell-preview');
-  if(!sku||!qty||qty<1){el.textContent='Select a SKU and qty to preview estimated COGS.';return;}
+  if(!sku||!qty||qty<=0){el.textContent='Select a SKU and qty to preview estimated COGS.';return;}
   const{cogs,canFulfill,available}=computeFIFO(sku,qty);
   el.innerHTML=!canFulfill?`<span style="color:var(--accent3)">⚠ Only ${available} unit(s) in stock.</span>`:`Est. COGS: <span style="color:var(--accent3)">${fmt$(cogs)}</span> &nbsp;·&nbsp; Avg: <span style="color:var(--muted)">${fmt$(cogs/qty)}/unit</span>`;
 }
 function openSaleModal(){
   const sku=document.getElementById('sell-sku').value,qty=parseFloat(document.getElementById('sell-qty').value),price=parseFloat(document.getElementById('sell-price').value),date=document.getElementById('sell-date').value||todayIso();
-  if(!sku){alert('Select a SKU.');return;} if(!qty||qty<1){alert('Enter a valid qty.');return;} if(isNaN(price)||price<=0){alert('Enter a valid sale price.');return;}
+  if(!sku){alert('Select a SKU.');return;} if(!qty||qty<=0){alert('Enter a valid qty.');return;} if(isNaN(price)||price<=0){alert('Enter a valid sale price.');return;}
   const{cogs,breakdown,canFulfill,available}=computeFIFO(sku,qty);
   if(!canFulfill){alert(`Only ${available} unit(s) in stock for "${sku}".`);return;}
   const revenue=qty*price,gp=revenue-cogs;
@@ -1442,13 +1442,13 @@ function confirmSale(){
 // ══════════════════════════════════════════════════════════════
 function updateBreakPreview(){
   const sku=document.getElementById('break-sku').value,qty=parseFloat(document.getElementById('break-qty').value),el=document.getElementById('break-preview');
-  if(!sku||!qty||qty<1){el.textContent='Cost is fully recognized at break time — no per-card tracking needed.';return;}
+  if(!sku||!qty||qty<=0){el.textContent='Cost is fully recognized at break time — no per-card tracking needed.';return;}
   const{cogs,canFulfill,available}=computeFIFO(sku,qty);
   el.innerHTML=!canFulfill?`<span style="color:var(--accent3)">⚠ Only ${available} unit(s) in stock.</span>`:`COGS to recognize: <span style="color:var(--break)">${fmt$(cogs)}</span> &nbsp;·&nbsp; <span style="color:var(--muted)">${fmt$(cogs/qty)}/unit</span> — fully expensed at break`;
 }
 function openBreakModal(){
   const sku=document.getElementById('break-sku').value,qty=parseFloat(document.getElementById('break-qty').value),notes=document.getElementById('break-notes').value.trim(),date=document.getElementById('break-date').value||todayIso();
-  if(!sku){alert('Select a sealed SKU.');return;} if(!qty||qty<1){alert('Enter a valid quantity.');return;}
+  if(!sku){alert('Select a sealed SKU.');return;} if(!qty||qty<=0){alert('Enter a valid quantity.');return;}
   const{cogs,breakdown,canFulfill,available}=computeFIFO(sku,qty);
   if(!canFulfill){alert(`Only ${available} unit(s) in stock for "${sku}".`);return;}
   pendingBreak={sku,qty,notes,date,cogs,breakdown,costPerUnit:cogs/qty};
