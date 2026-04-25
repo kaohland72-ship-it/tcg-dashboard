@@ -670,6 +670,13 @@ tr:hover td{background:rgba(255,255,255,.018)}
       <div class="card"><div class="lbl">Sealed Sales Revenue</div><div class="val" id="inv-revenue" style="color:var(--sale)">$0.00</div><div class="sub" id="inv-txn-count">0 transactions</div></div>
       <div class="card hl"><div class="lbl">Sealed Gross Profit</div><div class="val" id="inv-gp">$0.00</div><div class="sub" id="inv-margin">0.0% margin</div></div>
     </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+      <span style="font-size:10.5px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase">Filter COGS by Year</span>
+      <select id="cogs-year-filter" onchange="renderInventory()" style="padding:4px 10px;font-size:11px;max-width:120px">
+        <option value="">All Years</option>
+      </select>
+      <span id="cogs-year-note" style="font-size:10px;color:var(--muted)"></span>
+    </div>
 
     <div class="inv-form-box">
       <div class="form-tabs">
@@ -846,27 +853,28 @@ tr:hover td{background:rgba(255,255,255,.018)}
       </div>
     </div>
 
-    <div class="sh"><span class="st">Receipt Ledger</span><span id="receipt-ledger-count" style="font-size:10.5px;color:var(--muted)"></span><select id="receipt-sku-filter" onchange="renderReceiptLedger()" style="max-width:200px;padding:4px 9px;font-size:10.5px"><option value="">All SKUs</option></select></div>
+    <div class="sh"><span class="st">Receipt Ledger</span><span id="receipt-ledger-count" style="font-size:10.5px;color:var(--muted)"></span><select id="receipt-sku-filter" onchange="renderReceiptLedger()" style="max-width:200px;padding:4px 9px;font-size:10.5px"><option value="">All SKUs</option></select><input type="date" id="receipt-date-from" onchange="renderReceiptLedger()" style="padding:3px 7px;font-size:10.5px" title="From date"/><input type="date" id="receipt-date-to" onchange="renderReceiptLedger()" style="padding:3px 7px;font-size:10.5px" title="To date"/><button class="btn btn-sm btn-outline" onclick="exportLedger('receipt')" style="margin-left:4px">⬇ Export CSV</button></div>
     <div class="tw sc" style="max-height:260px;margin-bottom:20px">
       <table><thead><tr><th>Date</th><th>SKU</th><th>Qty Received</th><th>Qty Remaining</th><th>Unit Cost</th><th>Total Cost</th><th>Location</th><th>TCG SKU</th><th></th></tr></thead>
       <tbody id="receipt-ledger-body"></tbody></table>
     </div>
 
-    <div class="sh"><span class="st">Sales Ledger</span><span id="ledger-count" style="font-size:10.5px;color:var(--muted)"></span><select id="sales-sku-filter" onchange="renderSalesLedger()" style="max-width:200px;padding:4px 9px;font-size:10.5px"><option value="">All SKUs</option></select></div>
+    <div class="sh"><span class="st">Sales Ledger</span><span id="ledger-count" style="font-size:10.5px;color:var(--muted)"></span><select id="sales-sku-filter" onchange="renderSalesLedger()" style="max-width:200px;padding:4px 9px;font-size:10.5px"><option value="">All SKUs</option></select><input type="date" id="sales-date-from" onchange="renderSalesLedger()" style="padding:3px 7px;font-size:10.5px" title="From date"/><input type="date" id="sales-date-to" onchange="renderSalesLedger()" style="padding:3px 7px;font-size:10.5px" title="To date"/><button class="btn btn-sm btn-outline" onclick="exportLedger('sales')" style="margin-left:4px">⬇ Export CSV</button></div>
     <div class="tw sc" style="max-height:280px;margin-bottom:20px">
       <table><thead><tr><th>Date</th><th>SKU</th><th>Qty</th><th>Sale/Unit</th><th>Revenue</th><th>COGS (FIFO)</th><th>Gross Profit</th><th>Margin</th><th></th></tr></thead>
       <tbody id="sales-ledger-body"></tbody></table>
     </div>
 
-    <div class="sh"><span class="st" style="color:var(--break)">Break Ledger</span><span id="break-ledger-count" style="font-size:10.5px;color:var(--muted)"></span><select id="break-sku-filter-ledger" onchange="renderBreakLedger()" style="max-width:200px;padding:4px 9px;font-size:10.5px"><option value="">All SKUs</option></select></div>
+    <div class="sh"><span class="st" style="color:var(--break)">Break Ledger</span><span id="break-ledger-count" style="font-size:10.5px;color:var(--muted)"></span><select id="break-sku-filter-ledger" onchange="renderBreakLedger()" style="max-width:200px;padding:4px 9px;font-size:10.5px"><option value="">All SKUs</option></select><input type="date" id="break-date-from" onchange="renderBreakLedger()" style="padding:3px 7px;font-size:10.5px" title="From date"/><input type="date" id="break-date-to" onchange="renderBreakLedger()" style="padding:3px 7px;font-size:10.5px" title="To date"/><button class="btn btn-sm btn-outline" onclick="exportLedger('break')" style="margin-left:4px">⬇ Export CSV</button></div>
     <div class="tw sc" style="max-height:240px">
       <table><thead><tr><th>Date</th><th>Sealed SKU</th><th>Units Broken</th><th>COGS Recognized</th><th>Cost/Unit</th><th>Notes</th><th></th></tr></thead>
       <tbody id="break-ledger-body"></tbody></table>
     </div>
-  </div>
-</div>
-
-<!-- ══════════════ SINGLES / TCGPLAYER ══════════════ -->
+    <div class="sh" style="margin-top:20px"><span class="st" style="color:var(--muted)">Reversal Log</span><span id="audit-log-count" style="font-size:10.5px;color:var(--muted)"></span><button class="btn btn-sm btn-outline" onclick="exportLedger('audit')" style="margin-left:4px">⬇ Export CSV</button></div>
+    <div class="tw sc" style="max-height:200px;margin-bottom:20px">
+      <table><thead><tr><th>Timestamp</th><th>Action</th><th>SKU</th><th>Transaction Date</th><th>Detail</th></tr></thead>
+      <tbody id="audit-log-body"></tbody></table>
+    </div>
 <div id="tab-singles" class="tab-panel">
   <div class="tcg-panel">
 
@@ -1241,6 +1249,12 @@ let tasks   = JSON.parse(localStorage.getItem('tcg_tasks')   || '[]');
 let lots    = JSON.parse(localStorage.getItem('tcg_lots')    || '[]');
 let sales   = JSON.parse(localStorage.getItem('tcg_sales')   || '[]');
 let breaks  = JSON.parse(localStorage.getItem('tcg_breaks')  || '[]');
+let auditLog = JSON.parse(localStorage.getItem('tcg_audit')  || '[]');
+
+function addAuditLog(action, sku, date, detail) {
+  auditLog.push({ ts: new Date().toISOString(), action, sku, date, detail });
+  try { localStorage.setItem('tcg_audit', JSON.stringify(auditLog)); } catch(e) {}
+}
 // singles: { id, name, tcgId, set, rarity, condition, qtyListed, marketPrice, tcgListedPrice, lastUpdated, priceHistory:[{date,price,qty,totalValue}] }
 let singles = expandSingles(JSON.parse(localStorage.getItem('tcg_singles') || '[]'));
 let imports = JSON.parse(localStorage.getItem('tcg_imports') || '[]'); // import history
@@ -1289,7 +1303,7 @@ function switchTab(id, btn) {
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+id).classList.add('active');
   btn.classList.add('active');
-  if (id==='inventory') { populateInvDropdowns(); renderInventory(); renderLots(); renderReceiptLedger(); renderSalesLedger(); renderBreakLedger(); renderInvCharts(); }
+  if (id==='inventory') { populateInvDropdowns(); renderInventory(); renderLots(); renderReceiptLedger(); renderSalesLedger(); renderBreakLedger(); renderAuditLog(); renderInvCharts(); }
   if (id==='singles')   { renderSingles(); renderSinglesKPIs(); renderImportHistory(); renderSinglesCharts(); renderSnapUI(); }
   if (id==='sold')      { renderSold(); renderSoldKPIs(); renderSoldImportHist(); }
   if (id==='revenue')   { renderRevenue(); renderRevKPIs(); renderRevChart(); renderRevImportHist(); }
@@ -1506,13 +1520,27 @@ function renderInventory(){
   }).filter(Boolean);
   tbody.innerHTML=rows.length?rows.join(''):'<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:22px">No inventory.</td></tr>';
 
+  // Populate year dropdown from all sales and break dates
+  const yearSel = document.getElementById('cogs-year-filter');
+  const selYear = yearSel?.value || '';
+  if(yearSel){
+    const years=[...(new Set([...sales,...breaks].map(r=>(r.date||'').slice(0,4)).filter(Boolean)))].sort().reverse();
+    const prev=yearSel.value;
+    yearSel.innerHTML='<option value="">All Years</option>'+years.map(y=>`<option value="${y}"${y===prev?' selected':''}>${y}</option>`).join('');
+  }
+
+  // Apply year filter to COGS figures
+  const fSales  = selYear ? sales.filter(s=>(s.date||'').startsWith(selYear))  : sales;
+  const fBreaks = selYear ? breaks.filter(b=>(b.date||'').startsWith(selYear)) : breaks;
+  const yearLabel = selYear ? ` (${selYear})` : '';
+
   const onHand=lots.reduce((s,l)=>s+l.qtyRemaining,0);
   const costVal=lots.reduce((s,l)=>s+(l.qtyRemaining*l.unitCost),0);
-  const totalCOGS=sales.reduce((s,s2)=>s+s2.cogs,0);
-  const brokenCost=breaks.reduce((s,b)=>s+b.cogs,0);
-  const brokenUnits=breaks.reduce((s,b)=>s+b.qty,0);
-  const totalRev=sales.reduce((s,s2)=>s+s2.revenue,0);
-  const unitsSold=sales.reduce((s,s2)=>s+s2.qty,0);
+  const totalCOGS=fSales.reduce((s,s2)=>s+s2.cogs,0);
+  const brokenCost=fBreaks.reduce((s,b)=>s+b.cogs,0);
+  const brokenUnits=fBreaks.reduce((s,b)=>s+b.qty,0);
+  const totalRev=fSales.reduce((s,s2)=>s+s2.revenue,0);
+  const unitsSold=fSales.reduce((s,s2)=>s+s2.qty,0);
   const gp=totalRev-totalCOGS;
   const margin=totalRev>0?((gp/totalRev)*100).toFixed(1):'0.0';
 
@@ -1520,14 +1548,16 @@ function renderInventory(){
   document.getElementById('inv-cost-val').textContent=fmt$(costVal);
   document.getElementById('inv-units-hand').textContent=`${fmtUnits(onHand)} unit${onHand!==1?'s':''} on hand`;
   document.getElementById('inv-cogs').textContent=fmt$(totalCOGS);
-  document.getElementById('inv-units-sold').textContent=`${fmtUnits(unitsSold)} unit${unitsSold!==1?'s':''} sold`;
+  document.getElementById('inv-units-sold').textContent=`${fmtUnits(unitsSold)} unit${unitsSold!==1?'s':''} sold${yearLabel}`;
   document.getElementById('inv-broken-cost').textContent=fmt$(brokenCost);
-  document.getElementById('inv-units-broken').textContent=`${brokenUnits} unit${brokenUnits!==1?'s':''} broken`;
+  document.getElementById('inv-units-broken').textContent=`${fmtUnits(brokenUnits)} unit${brokenUnits!==1?'s':''} broken${yearLabel}`;
   document.getElementById('inv-revenue').textContent=fmt$(totalRev);
-  document.getElementById('inv-txn-count').textContent=`${sales.length} transaction${sales.length!==1?'s':''}`;
+  document.getElementById('inv-txn-count').textContent=`${fSales.length} transaction${fSales.length!==1?'s':''}${yearLabel}`;
   document.getElementById('inv-gp').textContent=fmt$(gp);
   document.getElementById('inv-gp').style.color=gp>=0?'var(--sale)':'var(--accent3)';
-  document.getElementById('inv-margin').textContent=`${margin}% margin`;
+  document.getElementById('inv-margin').textContent=`${margin}% margin${yearLabel}`;
+  const noteEl=document.getElementById('cogs-year-note');
+  if(noteEl) noteEl.textContent=selYear?`COGS, revenue and profit filtered to ${selYear}. Inventory at cost reflects current on-hand.`:'';
   updateHeader();
 }
 function renderLots(){
@@ -1551,22 +1581,6 @@ function renderLots(){
       </td>
     </tr>`;
   }).join(''):'<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:22px">No lots.</td></tr>';
-}
-
-function deleteLot(safeId, id) {
-  const lot = lots.find(l => String(l.id) === String(id));
-  if (!lot) return;
-  const fmtQty = q => Number.isInteger(q) ? q : q.toFixed(2);
-  const msg = `Delete this lot?\n\n${lot.sku}\nReceived: ${fmtQty(lot.qtyReceived)} units on ${fmtDate(lot.date)}\nRemaining: ${fmtQty(lot.qtyRemaining)} units\nUnit Cost: ${fmt$(lot.unitCost)}\n\nNote: Any sales or breaks that consumed this lot will NOT be reversed. Only delete if this was entered in error.`;
-  if (!confirm(msg)) return;
-  lots = lots.filter(l => String(l.id) !== String(id));
-  save();
-  populateInvDropdowns();
-  renderInventory();
-  renderLots();
-  renderInvCharts();
-  updateHeader();
-  sbPushSealed();
 }
 
 function editLot(safeId, id) {
@@ -1619,44 +1633,164 @@ function saveLotEdit(safeId, id) {
   sbPushSealed();
 }
 function renderSalesLedger(){
-  const filterEl = document.getElementById('sales-sku-filter');
-  const f = filterEl?.value || '';
-  const allSkus = [...new Set(sales.map(s=>s.sku))].sort();
-  if(filterEl){ const prev=filterEl.value; filterEl.innerHTML='<option value="">All SKUs</option>'+allSkus.map(s=>`<option value="${s}"${s===prev?' selected':''}>${s}</option>`).join(''); }
-  const filtered = [...sales].filter(s=>!f||s.sku===f).sort((a,b)=>b.date.localeCompare(a.date));
-  const countEl = document.getElementById('ledger-count');
-  if(countEl) countEl.textContent=`${filtered.length} sale${filtered.length!==1?'s':''}${f?' — filtered':''}`;
+  const filterEl=document.getElementById('sales-sku-filter');
+  const f=filterEl?.value||'';
+  const from=document.getElementById('sales-date-from')?.value||'';
+  const to=document.getElementById('sales-date-to')?.value||'';
+  const allSkus=[...new Set(sales.map(s=>s.sku))].sort();
+  if(filterEl){const prev=filterEl.value;filterEl.innerHTML='<option value="">All SKUs</option>'+allSkus.map(s=>`<option value="${s}"${s===prev?' selected':''}>${s}</option>`).join('');}
+  const filtered=[...sales].filter(s=>
+    (!f||s.sku===f)&&
+    (!from||s.date>=from)&&
+    (!to||s.date<=to)
+  ).sort((a,b)=>b.date.localeCompare(a.date));
+  const countEl=document.getElementById('ledger-count');
+  const totalRev=filtered.reduce((s,x)=>s+x.revenue,0);
+  const totalCogs=filtered.reduce((s,x)=>s+x.cogs,0);
+  const totalGp=totalRev-totalCogs;
+  if(countEl) countEl.textContent=`${filtered.length} sale${filtered.length!==1?'s':''}${f||from||to?' — filtered':''} · Rev: ${fmt$(totalRev)} · COGS: ${fmt$(totalCogs)} · GP: ${fmt$(totalGp)}`;
   const tbody=document.getElementById('sales-ledger-body');
   tbody.innerHTML=filtered.length?filtered.map(s=>{const gp=s.revenue-s.cogs,margin=s.revenue>0?((gp/s.revenue)*100).toFixed(1):'0.0';return `<tr><td style="color:var(--muted)">${fmtDate(s.date)}</td><td style="font-weight:500">${s.sku}</td><td>${s.qty}</td><td>${fmt$(s.salePrice)}</td><td class="gp">${fmt$(s.revenue)}</td><td class="gn">${fmt$(s.cogs)}</td><td class="${gp>=0?'gp':'gn'}">${fmt$(gp)}</td><td style="color:var(--muted)">${margin}%</td><td><button class="btn btn-sm btn-danger" onclick="deleteSale(${s.id})">✕</button></td></tr>`;}).join(''):'<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:22px">No sales.</td></tr>';
 }
-function deleteSale(id){if(!confirm('Delete sale? Lots will NOT be restored.')) return;sales=sales.filter(s=>s.id!==id);save();renderSalesLedger();renderInventory();updateHeader();sbPushSealed();}
+function deleteSale(id) {
+  const sale = sales.find(s => String(s.id) === String(id));
+  if (!sale) return;
+  const lotsConsumed = (sale.breakdown || []).map(b => {
+    const lot = lots.find(l => String(l.id) === String(b.lotId));
+    return lot ? `${lot.sku} lot (${fmtDate(lot.date)}): +${b.qtyUsed} restored` : null;
+  }).filter(Boolean);
+  const msg = `Delete this sale and restore inventory?\n\nSKU: ${sale.sku}\nDate: ${fmtDate(sale.date)}\nQty: ${sale.qty} · Revenue: ${fmt$(sale.revenue)} · COGS: ${fmt$(sale.cogs)}${lotsConsumed.length ? '\n\nFIFO lots to restore:\n' + lotsConsumed.join('\n') : ''}`;
+  if (!confirm(msg)) return;
+  // Restore FIFO lot quantities
+  (sale.breakdown || []).forEach(b => {
+    const lot = lots.find(l => String(l.id) === String(b.lotId));
+    if (lot) lot.qtyRemaining = Math.min(lot.qtyReceived, lot.qtyRemaining + b.qtyUsed);
+  });
+  // Log the reversal
+  addAuditLog('SALE REVERSED', sale.sku, sale.date, `Qty: ${sale.qty} · Revenue: ${fmt$(sale.revenue)} · COGS: ${fmt$(sale.cogs)}`);
+  sales = sales.filter(s => String(s.id) !== String(id));
+  save();
+  renderSalesLedger(); renderReceiptLedger(); renderInventory(); renderLots(); updateHeader();
+  sbPushSealed();
+}
+
+function deleteBreak(id) {
+  const brk = breaks.find(b => String(b.id) === String(id));
+  if (!brk) return;
+  const lotsConsumed = (brk.breakdown || []).map(b => {
+    const lot = lots.find(l => String(l.id) === String(b.lotId));
+    return lot ? `${lot.sku} lot (${fmtDate(lot.date)}): +${b.qtyUsed} restored` : null;
+  }).filter(Boolean);
+  const msg = `Delete this break and restore inventory?\n\nSKU: ${brk.sku}\nDate: ${fmtDate(brk.date)}\nQty: ${brk.qty} · COGS: ${fmt$(brk.cogs)}${lotsConsumed.length ? '\n\nFIFO lots to restore:\n' + lotsConsumed.join('\n') : ''}`;
+  if (!confirm(msg)) return;
+  // Restore FIFO lot quantities
+  (brk.breakdown || []).forEach(b => {
+    const lot = lots.find(l => String(l.id) === String(b.lotId));
+    if (lot) lot.qtyRemaining = Math.min(lot.qtyReceived, lot.qtyRemaining + b.qtyUsed);
+  });
+  // Log the reversal
+  addAuditLog('BREAK REVERSED', brk.sku, brk.date, `Qty: ${brk.qty} · COGS: ${fmt$(brk.cogs)}${brk.notes ? ' · ' + brk.notes : ''}`);
+  breaks = breaks.filter(b => String(b.id) !== String(id));
+  save();
+  renderBreakLedger(); renderReceiptLedger(); renderInventory(); renderLots(); updateHeader();
+  sbPushSealed();
+}
+
 function renderBreakLedger(){
-  const filterEl = document.getElementById('break-sku-filter-ledger');
-  const f = filterEl?.value || '';
-  const allSkus = [...new Set(breaks.map(b=>b.sku))].sort();
-  if(filterEl){ const prev=filterEl.value; filterEl.innerHTML='<option value="">All SKUs</option>'+allSkus.map(s=>`<option value="${s}"${s===prev?' selected':''}>${s}</option>`).join(''); }
-  const filtered = [...breaks].filter(b=>!f||b.sku===f).sort((a,b)=>b.date.localeCompare(a.date));
-  const countEl = document.getElementById('break-ledger-count');
-  if(countEl) countEl.textContent=`${filtered.length} break${filtered.length!==1?'s':''}${f?' — filtered':''}`;
+  const filterEl=document.getElementById('break-sku-filter-ledger');
+  const f=filterEl?.value||'';
+  const from=document.getElementById('break-date-from')?.value||'';
+  const to=document.getElementById('break-date-to')?.value||'';
+  const allSkus=[...new Set(breaks.map(b=>b.sku))].sort();
+  if(filterEl){const prev=filterEl.value;filterEl.innerHTML='<option value="">All SKUs</option>'+allSkus.map(s=>`<option value="${s}"${s===prev?' selected':''}>${s}</option>`).join('');}
+  const filtered=[...breaks].filter(b=>
+    (!f||b.sku===f)&&
+    (!from||b.date>=from)&&
+    (!to||b.date<=to)
+  ).sort((a,b)=>b.date.localeCompare(a.date));
+  const countEl=document.getElementById('break-ledger-count');
+  const totalCogs=filtered.reduce((s,x)=>s+x.cogs,0);
+  if(countEl) countEl.textContent=`${filtered.length} break${filtered.length!==1?'s':''}${f||from||to?' — filtered':''} · COGS: ${fmt$(totalCogs)}`;
   const tbody=document.getElementById('break-ledger-body');
   tbody.innerHTML=filtered.length?filtered.map(b=>`<tr><td style="color:var(--muted)">${fmtDate(b.date)}</td><td style="font-weight:500">${b.sku}</td><td>${b.qty}</td><td style="color:var(--break)">${fmt$(b.cogs)}</td><td style="color:var(--muted)">${fmt$(b.costPerUnit)}/unit</td><td style="color:var(--muted)">${b.notes||'—'}</td><td><button class="btn btn-sm btn-danger" onclick="deleteBreak(${b.id})">✕</button></td></tr>`).join(''):'<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:22px">No breaks.</td></tr>';
 }
-function deleteBreak(id){if(!confirm('Delete break? Lots will NOT be restored.')) return;breaks=breaks.filter(b=>b.id!==id);save();renderBreakLedger();renderInventory();updateHeader();sbPushSealed();}
+
+function renderAuditLog() {
+  const tbody = document.getElementById('audit-log-body');
+  if (!tbody) return;
+  const sorted = [...auditLog].sort((a,b) => b.ts.localeCompare(a.ts));
+  const countEl = document.getElementById('audit-log-count');
+  if (countEl) countEl.textContent = `${sorted.length} reversal${sorted.length!==1?'s':''}`;
+  tbody.innerHTML = sorted.length ? sorted.map(l =>
+    `<tr><td style="color:var(--muted);font-size:10px">${new Date(l.ts).toLocaleString()}</td><td><span style="background:var(--accent3);color:#fff;padding:2px 6px;border-radius:3px;font-size:9.5px;font-weight:600">${l.action}</span></td><td style="font-weight:500">${l.sku}</td><td style="color:var(--muted)">${fmtDate(l.date)}</td><td style="color:var(--muted);font-size:10.5px">${l.detail}</td></tr>`
+  ).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:18px">No reversals recorded.</td></tr>';
+}
+function exportLedger(type) {
+  const from = document.getElementById(`${type==='receipt'?'receipt':type}-date-from`)?.value || '';
+  const to   = document.getElementById(`${type==='receipt'?'receipt':type}-date-to`)?.value   || '';
+  const sku  = document.getElementById(type==='receipt'?'receipt-sku-filter':type==='sales'?'sales-sku-filter':'break-sku-filter-ledger')?.value || '';
+
+  let rows, headers, filename;
+
+  if (type === 'audit') {
+    headers = ['Timestamp','Action','SKU','Transaction Date','Detail'];
+    rows = [...auditLog].sort((a,b)=>b.ts.localeCompare(a.ts)).map(l => [new Date(l.ts).toLocaleString(), l.action, l.sku, l.date, l.detail]);
+    filename = `reversal-log.csv`;
+  } else if (type === 'receipt') {
+    const data = lots.filter(l=>(!sku||l.sku===sku)&&(!from||l.date>=from)&&(!to||l.date<=to))
+      .sort((a,b)=>b.date.localeCompare(a.date));
+    headers = ['Date','SKU','Qty Received','Qty Remaining','Unit Cost','Total Cost','Purchase Location','TCG SKU'];
+    rows = data.map(l => [l.date, l.sku, l.qtyReceived, l.qtyRemaining, l.unitCost.toFixed(2), (l.qtyReceived*l.unitCost).toFixed(2), l.purchaseLocation||'', l.tcgSku||'']);
+    filename = `receipts${sku?'-'+sku:''}${from?'-from-'+from:''}${to?'-to-'+to:''}.csv`;
+  } else if (type === 'sales') {
+    const data = sales.filter(s=>(!sku||s.sku===sku)&&(!from||s.date>=from)&&(!to||s.date<=to))
+      .sort((a,b)=>b.date.localeCompare(a.date));
+    headers = ['Date','SKU','Qty','Sale Price/Unit','Revenue','COGS','Gross Profit','Margin %'];
+    rows = data.map(s => {
+      const gp = s.revenue - s.cogs;
+      const margin = s.revenue > 0 ? ((gp/s.revenue)*100).toFixed(1) : '0.0';
+      return [s.date, s.sku, s.qty, s.salePrice.toFixed(2), s.revenue.toFixed(2), s.cogs.toFixed(2), gp.toFixed(2), margin];
+    });
+    filename = `sales${sku?'-'+sku:''}${from?'-from-'+from:''}${to?'-to-'+to:''}.csv`;
+  } else {
+    const data = breaks.filter(b=>(!sku||b.sku===sku)&&(!from||b.date>=from)&&(!to||b.date<=to))
+      .sort((a,b)=>b.date.localeCompare(a.date));
+    headers = ['Date','SKU','Units Broken','COGS','Cost Per Unit','Notes'];
+    rows = data.map(b => [b.date, b.sku, b.qty, b.cogs.toFixed(2), b.costPerUnit.toFixed(2), b.notes||'']);
+    filename = `breaks${sku?'-'+sku:''}${from?'-from-'+from:''}${to?'-to-'+to:''}.csv`;
+  }
+
+  if (!rows.length) { alert('No data to export for the selected filters.'); return; }
+
+  // Build CSV with totals row
+  const escape = v => `"${String(v).replace(/"/g,'""')}"`;
+  const csv = [headers.map(escape).join(','), ...rows.map(r=>r.map(escape).join(','))].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
 
 function renderReceiptLedger(){
-  const filterEl = document.getElementById('receipt-sku-filter');
-  const f = filterEl?.value || '';
-  // Populate filter dropdown
-  const allSkus = [...new Set(lots.map(l=>l.sku))].sort();
-  if(filterEl){ const prev=filterEl.value; filterEl.innerHTML='<option value="">All SKUs</option>'+allSkus.map(s=>`<option value="${s}"${s===prev?' selected':''}>${s}</option>`).join(''); }
-
-  const filtered = [...lots].filter(l=>!f||l.sku===f).sort((a,b)=>b.date.localeCompare(a.date)||String(b.id).localeCompare(String(a.id)));
-  const fmtQty = q => Number.isInteger(q) ? q : parseFloat(q).toFixed(2);
+  const filterEl=document.getElementById('receipt-sku-filter');
+  const f=filterEl?.value||'';
+  const from=document.getElementById('receipt-date-from')?.value||'';
+  const to=document.getElementById('receipt-date-to')?.value||'';
+  const allSkus=[...new Set(lots.map(l=>l.sku))].sort();
+  if(filterEl){const prev=filterEl.value;filterEl.innerHTML='<option value="">All SKUs</option>'+allSkus.map(s=>`<option value="${s}"${s===prev?' selected':''}>${s}</option>`).join('');}
+  const filtered=[...lots].filter(l=>
+    (!f||l.sku===f)&&
+    (!from||l.date>=from)&&
+    (!to||l.date<=to)
+  ).sort((a,b)=>b.date.localeCompare(a.date)||String(b.id).localeCompare(String(a.id)));
+  const fmtQty=q=>Number.isInteger(q)?q:parseFloat(q).toFixed(2);
   const tbody=document.getElementById('receipt-ledger-body');
   if(!tbody) return;
   const total=filtered.reduce((s,l)=>s+(l.qtyReceived*l.unitCost),0);
   const el=document.getElementById('receipt-ledger-count');
-  if(el) el.textContent=`${filtered.length} receipt${filtered.length!==1?'s':''} · ${fmt$(total)} total cost${f?' — filtered':''}`;
+  if(el) el.textContent=`${filtered.length} receipt${filtered.length!==1?'s':''}${f||from||to?' — filtered':''} · ${fmt$(total)} total cost`;
   tbody.innerHTML=filtered.length?filtered.map(l=>{
     const safeId=String(l.id).replace(/\./g,'_');
     const totalCost=l.qtyReceived*l.unitCost;
