@@ -536,6 +536,7 @@ tr:hover td{background:rgba(255,255,255,.018)}
 <!-- ══ TAB BAR ══ -->
 <div class="tab-bar">
   <button class="tab-btn active" onclick="switchTab('dashboard',this)">Dashboard</button>
+  <button class="tab-btn" onclick="switchTab('summary',this)">⚡ Executive Summary</button>
   <button class="tab-btn" onclick="switchTab('inventory',this)">Sealed Inventory</button>
   <button class="tab-btn" onclick="switchTab('singles',this)">Singles / TCGPlayer</button>
   <button class="tab-btn" onclick="switchTab('sold',this)">Singles Sold</button>
@@ -591,6 +592,90 @@ tr:hover td{background:rgba(255,255,255,.018)}
       </div>
       <div style="font-size:9.5px;color:var(--muted);margin-top:8px">Push sends your current data to Supabase. Pull loads data from Supabase into this device. Both happen automatically after every action.</div>
     </div>
+  </div>
+</div>
+
+<!-- ══════════════ EXECUTIVE SUMMARY ══════════════ -->
+<div id="tab-summary" class="tab-panel">
+  <div class="tab-panel-inner" style="max-width:1400px;margin:0 auto">
+
+    <!-- Year selector -->
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+      <span style="font-size:11px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase">Reporting Period</span>
+      <select id="sum-year" onchange="renderSummary()" style="padding:5px 12px;font-size:11px">
+        <option value="ytd">Year to Date</option>
+      </select>
+      <span id="sum-period-label" style="font-size:10.5px;color:var(--muted)"></span>
+      <button class="btn btn-sm btn-outline" onclick="renderSummary()" style="margin-left:auto">↻ Refresh</button>
+    </div>
+
+    <!-- Row 1: Business Health KPIs -->
+    <div style="font-size:9.5px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Business Health</div>
+    <div class="cards c4g" style="margin-bottom:24px" id="sum-health-cards">
+      <div class="card hl"><div class="lbl">Total Portfolio Value</div><div class="val" id="sum-portfolio">$0.00</div><div class="sub" id="sum-portfolio-sub">sealed cost + singles market</div></div>
+      <div class="card"><div class="lbl">Capital Deployed</div><div class="val" id="sum-deployed" style="color:var(--purchase)">$0.00</div><div class="sub" id="sum-deployed-sub">total inventory at cost</div></div>
+      <div class="card"><div class="lbl">Net Revenue (Period)</div><div class="val" id="sum-net-rev" style="color:var(--sale)">$0.00</div><div class="sub" id="sum-net-rev-sub">after TCGPlayer fees</div></div>
+      <div class="card"><div class="lbl">Net Profit (Period)</div><div class="val" id="sum-net-profit">$0.00</div><div class="sub" id="sum-net-profit-sub">revenue − COGS</div></div>
+    </div>
+
+    <!-- Row 2: COGS Breakdown -->
+    <div style="font-size:9.5px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">COGS Breakdown (Period)</div>
+    <div class="cards c4g" style="margin-bottom:24px">
+      <div class="card"><div class="lbl">Sealed Sales COGS</div><div class="val" id="sum-sealed-cogs" style="color:var(--accent3)">$0.00</div><div class="sub" id="sum-sealed-cogs-sub">0 transactions</div></div>
+      <div class="card hl-break"><div class="lbl">Break COGS</div><div class="val" id="sum-break-cogs" style="color:var(--break)">$0.00</div><div class="sub" id="sum-break-cogs-sub">0 breaks</div></div>
+      <div class="card"><div class="lbl">TCGPlayer Fees</div><div class="val" id="sum-fees" style="color:var(--accent3)">$0.00</div><div class="sub">13.25% of gross revenue</div></div>
+      <div class="card"><div class="lbl">Total Costs (Period)</div><div class="val" id="sum-total-costs" style="color:var(--accent3)">$0.00</div><div class="sub" id="sum-margin-sub">0.0% net margin</div></div>
+    </div>
+
+    <!-- Row 3: Inventory Health + Top Performers side by side -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px" id="sum-mid-grid">
+
+      <!-- Inventory Health -->
+      <div class="sw" style="padding:18px">
+        <div class="sh" style="margin-bottom:14px"><span class="st">Inventory Health</span></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+          <div class="card" style="padding:10px 12px"><div class="lbl">Sealed SKUs On Hand</div><div class="val" id="sum-sealed-skus" style="font-size:18px;color:var(--purchase)">0</div></div>
+          <div class="card" style="padding:10px 12px"><div class="lbl">Sealed Inventory Cost</div><div class="val" id="sum-sealed-cost" style="font-size:18px;color:var(--purchase)">$0.00</div></div>
+          <div class="card" style="padding:10px 12px"><div class="lbl">Singles SKUs Listed</div><div class="val" id="sum-singles-skus" style="font-size:18px;color:var(--tcg)">0</div></div>
+          <div class="card" style="padding:10px 12px"><div class="lbl">Singles Market Value</div><div class="val" id="sum-singles-mkt" style="font-size:18px;color:var(--sale)">$0.00</div></div>
+        </div>
+        <!-- Aging breakdown -->
+        <div style="font-size:9.5px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Sealed Inventory Aging</div>
+        <div id="sum-aging" style="font-size:11px"></div>
+      </div>
+
+      <!-- Top Performing SKUs -->
+      <div class="sw" style="padding:18px">
+        <div class="sh" style="margin-bottom:14px"><span class="st">Top SKUs by Net Profit</span><span id="sum-top-period" style="font-size:10px;color:var(--muted)"></span></div>
+        <div class="tw" style="max-height:280px;overflow-y:auto">
+          <table>
+            <thead><tr><th>SKU</th><th>Units</th><th>Net Rev</th><th>COGS</th><th>Profit</th><th>Margin</th></tr></thead>
+            <tbody id="sum-top-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 4: Listing Priorities -->
+    <div class="sw" style="padding:18px;margin-bottom:24px">
+      <div class="sh" style="margin-bottom:14px">
+        <span class="st">Listing Priorities</span>
+        <span style="font-size:10px;color:var(--muted)">Sealed inventory ranked by days on hand — consider listing or breaking older stock</span>
+      </div>
+      <div class="tw sc" style="max-height:260px">
+        <table>
+          <thead><tr><th>SKU</th><th>Game</th><th>On Hand</th><th>Cost Basis</th><th>Mkt Price</th><th>Unrealized P&amp;L</th><th>Days on Hand</th><th>Signal</th></tr></thead>
+          <tbody id="sum-listing-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Row 5: Monthly Revenue Trend -->
+    <div class="sw" style="padding:18px;margin-bottom:24px">
+      <div class="sh" style="margin-bottom:14px"><span class="st">Monthly Net Revenue Trend</span></div>
+      <canvas id="sum-trend-chart" height="80"></canvas>
+    </div>
+
   </div>
 </div>
 
@@ -1327,6 +1412,7 @@ function switchTab(id, btn) {
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+id).classList.add('active');
   btn.classList.add('active');
+  if (id==='summary')  { renderSummary(); }
   if (id==='inventory') { populateInvDropdowns(); renderInventory(); renderLots(); renderReceiptLedger(); renderSalesLedger(); renderBreakLedger(); renderAuditLog(); renderInvCharts(); }
   if (id==='singles')   { renderSingles(); renderSinglesKPIs(); renderImportHistory(); renderSinglesCharts(); renderSnapUI(); }
   if (id==='sold')      { renderSold(); renderSoldKPIs(); renderSoldImportHist(); }
@@ -4089,8 +4175,237 @@ function renderSnapUI() {
 }
 
 // ══════════════════════════════════════════════════════════════
-// SUPABASE — SEALED INVENTORY SYNC
+// EXECUTIVE SUMMARY
 // ══════════════════════════════════════════════════════════════
+function renderSummary() {
+  const yearSel = document.getElementById('sum-year');
+  if (!yearSel) return;
+
+  // Populate year dropdown
+  const allYears = [...new Set([...sales,...breaks].map(r=>(r.date||'').slice(0,4)).filter(Boolean))].sort().reverse();
+  const curYear = new Date().getFullYear().toString();
+  if (yearSel.options.length <= 1) {
+    allYears.forEach(y => {
+      const o = document.createElement('option');
+      o.value = y; o.textContent = y;
+      yearSel.appendChild(o);
+    });
+  }
+  const selVal = yearSel.value || 'ytd';
+  const now = new Date();
+  let fromDate = '', toDate = '';
+  if (selVal === 'ytd') {
+    fromDate = curYear + '-01-01';
+    toDate = now.toISOString().slice(0,10);
+    document.getElementById('sum-period-label').textContent = `Jan 1 ${curYear} — Today`;
+  } else {
+    fromDate = selVal + '-01-01';
+    toDate   = selVal + '-12-31';
+    document.getElementById('sum-period-label').textContent = `Full year ${selVal}`;
+  }
+
+  const inPeriod = r => (!fromDate || r.date >= fromDate) && (!toDate || r.date <= toDate);
+  const pSales  = sales.filter(inPeriod);
+  const pBreaks = breaks.filter(inPeriod);
+
+  // ── KPI calculations ──
+  const sealedCOGS   = pSales.reduce((s,x) => s + x.cogs, 0);
+  const breakCOGS    = pBreaks.reduce((s,x) => s + x.cogs, 0);
+  const grossRev     = pSales.reduce((s,x) => s + x.revenue, 0);
+  const fees         = pSales.reduce((s,x) => s + (x.fees != null ? x.fees : x.revenue * TCG_FEE_RATE), 0);
+  const netRev       = pSales.reduce((s,x) => s + (x.netProceeds != null ? x.netProceeds : x.revenue * (1 - TCG_FEE_RATE)), 0);
+  const totalCosts   = sealedCOGS + breakCOGS + fees;
+  const netProfit    = netRev - sealedCOGS;
+  const netMargin    = netRev > 0 ? ((netProfit/netRev)*100).toFixed(1) : '0.0';
+
+  // Portfolio value
+  const sealedCost   = lots.reduce((s,l) => s + l.qtyRemaining * l.unitCost, 0);
+  const singlesMkt   = singles.reduce((s,x) => s + x.qtyListed * x.marketPrice, 0);
+  const portfolioVal = sealedCost + singlesMkt;
+  const capitalDepl  = lots.reduce((s,l) => s + l.qtyReceived * l.unitCost, 0);
+
+  // Set KPI values
+  document.getElementById('sum-portfolio').textContent = fmt$(portfolioVal);
+  document.getElementById('sum-portfolio-sub').textContent = `${fmt$(sealedCost)} sealed + ${fmt$(singlesMkt)} singles`;
+  document.getElementById('sum-deployed').textContent = fmt$(capitalDepl);
+  document.getElementById('sum-deployed-sub').textContent = `${fmt$(sealedCost)} still on hand`;
+  document.getElementById('sum-net-rev').textContent = fmt$(netRev);
+  document.getElementById('sum-net-rev-sub').textContent = `${fmt$(grossRev)} gross − ${fmt$(fees)} fees`;
+  document.getElementById('sum-net-profit').textContent = fmt$(netProfit);
+  document.getElementById('sum-net-profit').style.color = netProfit >= 0 ? 'var(--sale)' : 'var(--accent3)';
+  document.getElementById('sum-net-profit-sub').textContent = `${netMargin}% net margin`;
+
+  document.getElementById('sum-sealed-cogs').textContent = fmt$(sealedCOGS);
+  document.getElementById('sum-sealed-cogs-sub').textContent = `${pSales.length} transaction${pSales.length!==1?'s':''}`;
+  document.getElementById('sum-break-cogs').textContent = fmt$(breakCOGS);
+  document.getElementById('sum-break-cogs-sub').textContent = `${pBreaks.length} break${pBreaks.length!==1?'s':''}`;
+  document.getElementById('sum-fees').textContent = fmt$(fees);
+  document.getElementById('sum-total-costs').textContent = fmt$(totalCosts);
+  document.getElementById('sum-margin-sub').textContent = `${netMargin}% net margin`;
+
+  // Inventory health
+  const allSkus = [...new Set(lots.map(l=>l.sku))];
+  const onHandSkus = allSkus.filter(sku => lots.filter(l=>l.sku===sku).reduce((s,l)=>s+l.qtyRemaining,0) > 0);
+  document.getElementById('sum-sealed-skus').textContent = onHandSkus.length;
+  document.getElementById('sum-sealed-cost').textContent = fmt$(sealedCost);
+  document.getElementById('sum-singles-skus').textContent = singles.filter(s=>s.qtyListed>0).length.toLocaleString();
+  document.getElementById('sum-singles-mkt').textContent = fmt$(singlesMkt);
+
+  // ── Inventory Aging ──
+  const today = new Date();
+  const agingBuckets = { fresh:[], moderate:[], aged:[], stale:[] };
+  onHandSkus.forEach(sku => {
+    const skuLots = lots.filter(l=>l.sku===sku&&l.qtyRemaining>0);
+    const oldest = skuLots.reduce((m,l)=>l.date<m?l.date:m, skuLots[0]?.date||'');
+    if (!oldest) return;
+    const days = Math.floor((today - new Date(oldest)) / 86400000);
+    const oh = skuLots.reduce((s,l)=>s+l.qtyRemaining,0);
+    const cost = skuLots.reduce((s,l)=>s+l.qtyRemaining*l.unitCost,0);
+    const meta = skuMeta.find(m=>m.sku===sku);
+    const mktPrice = meta?.marketPrice||0;
+    const entry = { sku, days, oh, cost, mktPrice };
+    if (days < 30)       agingBuckets.fresh.push(entry);
+    else if (days < 90)  agingBuckets.moderate.push(entry);
+    else if (days < 180) agingBuckets.aged.push(entry);
+    else                 agingBuckets.stale.push(entry);
+  });
+
+  const agingEl = document.getElementById('sum-aging');
+  const agingRows = [
+    { label:'< 30 days',   color:'var(--sale)',    items: agingBuckets.fresh },
+    { label:'30–90 days',  color:'var(--accent)',  items: agingBuckets.moderate },
+    { label:'90–180 days', color:'var(--break)',   items: agingBuckets.aged },
+    { label:'180+ days',   color:'var(--accent3)', items: agingBuckets.stale },
+  ];
+  agingEl.innerHTML = agingRows.map(b => {
+    const cost = b.items.reduce((s,x)=>s+x.cost,0);
+    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <span style="width:8px;height:8px;border-radius:50%;background:${b.color};flex-shrink:0"></span>
+      <span style="flex:1;font-size:11px;color:var(--muted)">${b.label}</span>
+      <span style="font-size:11px;font-weight:600;color:${b.color}">${b.items.length} SKU${b.items.length!==1?'s':''}</span>
+      <span style="font-size:10.5px;color:var(--muted)">${fmt$(cost)}</span>
+    </div>`;
+  }).join('');
+
+  // ── Top performing SKUs ──
+  const skuPerfMap = {};
+  pSales.forEach(s => {
+    if (!skuPerfMap[s.sku]) skuPerfMap[s.sku] = { units:0, netRev:0, cogs:0 };
+    const net = s.netProceeds != null ? s.netProceeds : s.revenue*(1-TCG_FEE_RATE);
+    skuPerfMap[s.sku].units += s.qty;
+    skuPerfMap[s.sku].netRev += net;
+    skuPerfMap[s.sku].cogs   += s.cogs;
+  });
+  const topSkus = Object.entries(skuPerfMap)
+    .map(([sku,v]) => ({ sku, ...v, profit: v.netRev-v.cogs, margin: v.netRev>0?((v.netRev-v.cogs)/v.netRev*100).toFixed(1):'0.0' }))
+    .sort((a,b) => b.profit - a.profit)
+    .slice(0, 10);
+  document.getElementById('sum-top-period').textContent = selVal==='ytd'?` — YTD ${curYear}`:` — ${selVal}`;
+  document.getElementById('sum-top-body').innerHTML = topSkus.length
+    ? topSkus.map(s => `<tr>
+        <td style="font-weight:500;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${s.sku}">${s.sku}</td>
+        <td>${s.units}</td>
+        <td class="gp">${fmt$(s.netRev)}</td>
+        <td class="gn">${fmt$(s.cogs)}</td>
+        <td class="${s.profit>=0?'gp':'gn'}">${fmt$(s.profit)}</td>
+        <td style="color:var(--muted)">${s.margin}%</td>
+      </tr>`).join('')
+    : '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:16px">No sales in this period.</td></tr>';
+
+  // ── Listing Priorities ──
+  const listingRows = onHandSkus.map(sku => {
+    const skuLots = lots.filter(l=>l.sku===sku&&l.qtyRemaining>0);
+    const oh = skuLots.reduce((s,l)=>s+l.qtyRemaining,0);
+    const cost = skuLots.reduce((s,l)=>s+l.qtyRemaining*l.unitCost,0);
+    const avgCost = oh > 0 ? cost/oh : 0;
+    const oldest = skuLots.reduce((m,l)=>l.date<m?l.date:m, skuLots[0]?.date||'');
+    const days = oldest ? Math.floor((today - new Date(oldest)) / 86400000) : 0;
+    const meta = skuMeta.find(m=>m.sku===sku);
+    const mktPrice = meta?.marketPrice||0;
+    const game = meta?.game||'—';
+    const unrealizedPL = mktPrice > 0 ? (mktPrice - avgCost) * oh : null;
+    return { sku, game, oh, cost, avgCost, mktPrice, unrealizedPL, days };
+  }).sort((a,b) => b.days - a.days);
+
+  const fmtQty = q => Number.isInteger(q) ? q : q.toFixed(2);
+  document.getElementById('sum-listing-body').innerHTML = listingRows.length
+    ? listingRows.map(r => {
+        let signal = '', signalColor = 'var(--muted)';
+        if (r.days >= 180)      { signal = '🔴 Consider liquidating'; signalColor='var(--accent3)'; }
+        else if (r.days >= 90)  { signal = '🟡 Review pricing';       signalColor='var(--accent)'; }
+        else if (r.days >= 30)  { signal = '🟢 Active';               signalColor='var(--sale)'; }
+        else                    { signal = '🔵 Recently received';     signalColor='var(--tcg)'; }
+        const plText = r.unrealizedPL != null
+          ? `<span style="color:${r.unrealizedPL>=0?'var(--sale)':'var(--accent3)'}">${fmt$(r.unrealizedPL)}</span>`
+          : '<span style="color:var(--muted)">—</span>';
+        return `<tr>
+          <td style="font-weight:500;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.sku}">${r.sku}</td>
+          <td style="color:var(--muted)">${r.game}</td>
+          <td>${fmtQty(r.oh)}</td>
+          <td style="color:var(--purchase)">${fmt$(r.cost)}</td>
+          <td style="color:var(--muted)">${r.mktPrice>0?fmt$(r.mktPrice):'—'}</td>
+          <td>${plText}</td>
+          <td style="color:${r.days>=180?'var(--accent3)':r.days>=90?'var(--accent)':'var(--muted)'}">${r.days}d</td>
+          <td style="font-size:10px;color:${signalColor}">${signal}</td>
+        </tr>`;
+      }).join('')
+    : '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:16px">No sealed inventory on hand.</td></tr>';
+
+  // ── Monthly trend chart ──
+  const monthMap = {};
+  sales.forEach(s => {
+    const mo = (s.date||'').slice(0,7); if(!mo) return;
+    if (!monthMap[mo]) monthMap[mo] = { netRev:0, cogs:0 };
+    monthMap[mo].netRev += s.netProceeds != null ? s.netProceeds : s.revenue*(1-TCG_FEE_RATE);
+    monthMap[mo].cogs   += s.cogs;
+  });
+  const months = Object.keys(monthMap).sort().slice(-12);
+  const canvas = document.getElementById('sum-trend-chart');
+  if (canvas && months.length) {
+    const ctx = canvas.getContext('2d');
+    const W = canvas.offsetWidth || 800; canvas.width = W; canvas.height = 160;
+    const pad = { t:20, r:20, b:40, l:60 };
+    const cw = W - pad.l - pad.r, ch = 160 - pad.t - pad.b;
+    const maxVal = Math.max(...months.map(m => monthMap[m].netRev), 1);
+    ctx.clearRect(0,0,W,160);
+    const barW = (cw / months.length) * 0.6;
+    const barGap = cw / months.length;
+    // Draw bars
+    months.forEach((mo, i) => {
+      const x = pad.l + i * barGap + (barGap - barW) / 2;
+      const rev = monthMap[mo].netRev;
+      const cogs = monthMap[mo].cogs;
+      const revH = (rev / maxVal) * ch;
+      const cogsH = (cogs / maxVal) * ch;
+      // Revenue bar
+      ctx.fillStyle = 'rgba(52,211,153,0.7)';
+      ctx.fillRect(x, pad.t + ch - revH, barW/2, revH);
+      // COGS bar
+      ctx.fillStyle = 'rgba(255,107,107,0.7)';
+      ctx.fillRect(x + barW/2, pad.t + ch - cogsH, barW/2, cogsH);
+      // Month label
+      ctx.fillStyle = '#6b7280';
+      ctx.font = '9px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(mo.slice(5), pad.l + i * barGap + barGap/2, 160 - 8);
+    });
+    // Y axis label
+    ctx.fillStyle = '#6b7280';
+    ctx.font = '9px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(fmt$(maxVal), pad.l - 4, pad.t + 4);
+    ctx.fillText('$0', pad.l - 4, pad.t + ch);
+    // Legend
+    ctx.fillStyle = 'rgba(52,211,153,0.7)'; ctx.fillRect(pad.l, 4, 10, 8);
+    ctx.fillStyle = '#e8eaf0'; ctx.textAlign='left'; ctx.font='9px sans-serif';
+    ctx.fillText('Net Revenue', pad.l+14, 12);
+    ctx.fillStyle = 'rgba(255,107,107,0.7)'; ctx.fillRect(pad.l+90, 4, 10, 8);
+    ctx.fillStyle = '#e8eaf0';
+    ctx.fillText('COGS', pad.l+104, 12);
+  }
+}
+
+
 
 // ── Push sealed inventory to Supabase ──
 async function sbPushSealed() {
