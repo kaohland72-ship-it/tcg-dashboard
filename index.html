@@ -635,7 +635,9 @@ tr:hover td{background:rgba(255,255,255,.018)}
         <div class="sh" style="margin-bottom:14px"><span class="st">Inventory Health</span></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
           <div class="card" style="padding:10px 12px"><div class="lbl">Sealed SKUs On Hand</div><div class="val" id="sum-sealed-skus" style="font-size:18px;color:var(--purchase)">0</div></div>
-          <div class="card" style="padding:10px 12px"><div class="lbl">Sealed Inventory Cost</div><div class="val" id="sum-sealed-cost" style="font-size:18px;color:var(--purchase)">$0.00</div></div>
+          <div class="card" style="padding:10px 12px"><div class="lbl">Sealed Cost Basis</div><div class="val" id="sum-sealed-cost" style="font-size:18px;color:var(--purchase)">$0.00</div></div>
+          <div class="card hl" style="padding:10px 12px"><div class="lbl">Sealed Market Value</div><div class="val" id="sum-sealed-mkt" style="font-size:18px;color:var(--sale)">$0.00</div></div>
+          <div class="card" style="padding:10px 12px"><div class="lbl">Sealed Unrealized P&amp;L</div><div class="val" id="sum-sealed-pl" style="font-size:18px">$0.00</div></div>
           <div class="card" style="padding:10px 12px"><div class="lbl">Singles SKUs Listed</div><div class="val" id="sum-singles-skus" style="font-size:18px;color:var(--tcg)">0</div></div>
           <div class="card" style="padding:10px 12px"><div class="lbl">Singles Market Value</div><div class="val" id="sum-singles-mkt" style="font-size:18px;color:var(--sale)">$0.00</div></div>
         </div>
@@ -656,7 +658,22 @@ tr:hover td{background:rgba(255,255,255,.018)}
       </div>
     </div>
 
-    <!-- Row 4: Listing Priorities -->
+    <!-- Cost vs Market Comparison -->
+    <div class="sw" style="padding:18px;margin-bottom:24px">
+      <div class="sh" style="margin-bottom:6px">
+        <span class="st">Sealed Cost vs Market Value</span>
+        <span style="font-size:10px;color:var(--muted)">SKUs with market price entered — sorted by unrealized P&amp;L</span>
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:12px">
+        Positive P&amp;L = product has appreciated above cost — strong listing candidate. Negative = selling below cost.
+      </div>
+      <div class="tw sc" style="max-height:280px">
+        <table>
+          <thead><tr><th>SKU</th><th>Game</th><th>On Hand</th><th>Avg Cost</th><th>Mkt Price</th><th>Cost Basis</th><th>Market Value</th><th>Unrealized P&amp;L</th><th>Return %</th><th>Days</th></tr></thead>
+          <tbody id="sum-cost-mkt-body"></tbody>
+        </table>
+      </div>
+    </div>
     <div class="sw" style="padding:18px;margin-bottom:24px">
       <div class="sh" style="margin-bottom:14px">
         <span class="st">Listing Priorities</span>
@@ -762,12 +779,20 @@ tr:hover td{background:rgba(255,255,255,.018)}
 <!-- ══════════════ INVENTORY ══════════════ -->
 <div id="tab-inventory" class="tab-panel">
   <div class="inv-panel">
-    <div class="cards c5g" style="margin-bottom:20px">
+    <div class="cards c5g" style="margin-bottom:12px">
       <div class="card"><div class="lbl">Inventory at Cost</div><div class="val" id="inv-cost-val" style="color:var(--purchase)">$0.00</div><div class="sub" id="inv-units-hand">0 units on hand</div></div>
       <div class="card"><div class="lbl">Total COGS — Sealed Sales</div><div class="val" id="inv-cogs" style="color:var(--accent3)">$0.00</div><div class="sub" id="inv-units-sold">0 sold</div></div>
       <div class="card hl-break"><div class="lbl">COGS — Singles Breaks</div><div class="val" id="inv-broken-cost" style="color:var(--break)">$0.00</div><div class="sub" id="inv-units-broken">0 units broken</div></div>
       <div class="card"><div class="lbl">Sealed Net Revenue</div><div class="val" id="inv-revenue" style="color:var(--sale)">$0.00</div><div class="sub" id="inv-txn-count">0 transactions</div></div>
       <div class="card hl"><div class="lbl">Sealed Net Profit</div><div class="val" id="inv-gp">$0.00</div><div class="sub" id="inv-margin">0.0% net margin</div></div>
+    </div>
+    <!-- Market value row -->
+    <div class="cards c5g" style="margin-bottom:20px">
+      <div class="card hl"><div class="lbl">Inventory at Market</div><div class="val" id="inv-mkt-val" style="color:var(--sale)">$0.00</div><div class="sub" id="inv-mkt-sub">enter market prices below</div></div>
+      <div class="card"><div class="lbl">Unrealized P&amp;L</div><div class="val" id="inv-unreal-pl">$0.00</div><div class="sub" id="inv-unreal-sub">market vs cost basis</div></div>
+      <div class="card"><div class="lbl">SKUs Priced</div><div class="val" id="inv-priced-skus" style="color:var(--muted)">0</div><div class="sub" id="inv-priced-sub">of 0 SKUs on hand</div></div>
+      <div class="card"><div class="lbl">Avg Return on Cost</div><div class="val" id="inv-avg-return">—</div><div class="sub">market ÷ cost basis</div></div>
+      <div class="card"><div class="lbl">Coverage</div><div class="val" id="inv-mkt-coverage">0%</div><div class="sub">% of cost basis priced</div></div>
     </div>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
       <span style="font-size:10.5px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase">Filter COGS by Year</span>
@@ -950,6 +975,24 @@ tr:hover td{background:rgba(255,255,255,.018)}
         </div>
 
       </div>
+    </div>
+
+    <!-- Cost vs Market Comparison -->
+    <div class="sh" style="margin-top:4px">
+      <span class="st">Cost vs Market Value</span>
+      <span id="inv-cvm-count" style="font-size:10.5px;color:var(--muted)"></span>
+      <select id="inv-cvm-filter" onchange="renderCostVsMarket()" style="max-width:180px;padding:4px 9px;font-size:10.5px">
+        <option value="all">All SKUs</option>
+        <option value="priced">Priced only</option>
+        <option value="gain">Gains only</option>
+        <option value="loss">Losses only</option>
+      </select>
+      <button class="btn btn-sm btn-outline" onclick="exportCostVsMarket()">⬇ Export CSV</button>
+    </div>
+    <div style="font-size:10px;color:var(--muted);margin-bottom:8px">Enter market prices in the SKU Tagger above to populate this table. Sorted by unrealized P&amp;L — highest gains first.</div>
+    <div class="tw sc" style="max-height:300px;margin-bottom:24px">
+      <table><thead><tr><th>SKU</th><th>Game</th><th>On Hand</th><th>Avg Cost</th><th>Mkt Price</th><th>Cost Basis</th><th>Market Value</th><th>Unrealized P&amp;L</th><th>Return %</th><th>Days</th></tr></thead>
+      <tbody id="inv-cvm-body"></tbody></table>
     </div>
 
     <div class="sh"><span class="st">Receipt Ledger</span><span id="receipt-ledger-count" style="font-size:10.5px;color:var(--muted)"></span><select id="receipt-sku-filter" onchange="renderReceiptLedger()" style="max-width:200px;padding:4px 9px;font-size:10.5px"><option value="">All SKUs</option></select><input type="date" id="receipt-date-from" onchange="renderReceiptLedger()" style="padding:3px 7px;font-size:10.5px" title="From date"/><input type="date" id="receipt-date-to" onchange="renderReceiptLedger()" style="padding:3px 7px;font-size:10.5px" title="To date"/><button class="btn btn-sm btn-outline" onclick="exportLedger('receipt')" style="margin-left:4px">⬇ Export CSV</button></div>
@@ -1675,10 +1718,133 @@ function renderInventory(){
   document.getElementById('inv-gp').textContent=fmt$(gp);
   document.getElementById('inv-gp').style.color=gp>=0?'var(--sale)':'var(--accent3)';
   document.getElementById('inv-margin').textContent=`${margin}% net margin${yearLabel}`;
-  const noteEl=document.getElementById('cogs-year-note');
-  if(noteEl) noteEl.textContent=selYear?`COGS, revenue and profit filtered to ${selYear}. Inventory at cost reflects current on-hand.`:'';
-  updateHeader();
+  // Market value KPI cards
+  const allOnHandSkus = [...new Set(lots.map(l=>l.sku))].filter(sku =>
+    lots.filter(l=>l.sku===sku).reduce((s,l)=>s+l.qtyRemaining,0) > 0
+  );
+  let totalMktVal = 0, totalCostBasis = 0, pricedSkus = 0, pricedCost = 0;
+  allOnHandSkus.forEach(sku => {
+    const skuLots = lots.filter(l=>l.sku===sku&&l.qtyRemaining>0);
+    const oh = skuLots.reduce((s,l)=>s+l.qtyRemaining,0);
+    const cost = skuLots.reduce((s,l)=>s+l.qtyRemaining*l.unitCost,0);
+    totalCostBasis += cost;
+    const meta = skuMeta.find(m=>m.sku===sku);
+    if (meta?.marketPrice > 0) {
+      totalMktVal += oh * meta.marketPrice;
+      pricedSkus++;
+      pricedCost += cost;
+    }
+  });
+  const unrealPL = totalMktVal - pricedCost;
+  const avgReturn = pricedCost > 0 ? ((totalMktVal/pricedCost-1)*100).toFixed(1) : null;
+  const coverage = totalCostBasis > 0 ? Math.round((pricedCost/totalCostBasis)*100) : 0;
+  const mktEl = document.getElementById('inv-mkt-val');
+  const plEl2 = document.getElementById('inv-unreal-pl');
+  if (mktEl) mktEl.textContent = totalMktVal > 0 ? fmt$(totalMktVal) : '—';
+  if (mktEl) document.getElementById('inv-mkt-sub').textContent = totalMktVal > 0 ? `${pricedSkus} SKU${pricedSkus!==1?'s':''} priced` : 'enter market prices below';
+  if (plEl2) { plEl2.textContent = totalMktVal > 0 ? fmt$(unrealPL) : '—'; plEl2.style.color = unrealPL >= 0 ? 'var(--sale)' : 'var(--accent3)'; }
+  if (plEl2) document.getElementById('inv-unreal-sub').textContent = totalMktVal > 0 ? `${fmt$(totalMktVal)} mkt vs ${fmt$(pricedCost)} cost` : 'market vs cost basis';
+  const psEl = document.getElementById('inv-priced-skus');
+  if (psEl) { psEl.textContent = pricedSkus; psEl.style.color = pricedSkus > 0 ? 'var(--sale)' : 'var(--muted)'; }
+  if (psEl) document.getElementById('inv-priced-sub').textContent = `of ${allOnHandSkus.length} SKUs on hand`;
+  const arEl = document.getElementById('inv-avg-return');
+  if (arEl) { arEl.textContent = avgReturn !== null ? avgReturn + '%' : '—'; arEl.style.color = avgReturn !== null ? (parseFloat(avgReturn)>=0?'var(--sale)':'var(--accent3)') : 'var(--muted)'; }
+  const covEl = document.getElementById('inv-mkt-coverage');
+  if (covEl) { covEl.textContent = coverage + '%'; covEl.style.color = coverage >= 80 ? 'var(--sale)' : coverage >= 50 ? 'var(--accent)' : 'var(--muted)'; }
+  renderCostVsMarket();
 }
+
+// ── Cost vs Market table ──
+function renderCostVsMarket() {
+  const tbody = document.getElementById('inv-cvm-body');
+  if (!tbody) return;
+  const filterVal = document.getElementById('inv-cvm-filter')?.value || 'all';
+  const today = new Date();
+  const fmtQty = q => Number.isInteger(q) ? q : parseFloat(q).toFixed(2);
+  const allOnHandSkus = [...new Set(lots.map(l=>l.sku))].filter(sku =>
+    lots.filter(l=>l.sku===sku).reduce((s,l)=>s+l.qtyRemaining,0) > 0
+  );
+  let rows = allOnHandSkus.map(sku => {
+    const skuLots = lots.filter(l=>l.sku===sku&&l.qtyRemaining>0);
+    const oh = skuLots.reduce((s,l)=>s+l.qtyRemaining,0);
+    const cost = skuLots.reduce((s,l)=>s+l.qtyRemaining*l.unitCost,0);
+    const avgCost = oh > 0 ? cost/oh : 0;
+    const oldest = skuLots.reduce((m,l)=>l.date<m?l.date:m, skuLots[0]?.date||'');
+    const days = oldest ? Math.floor((today - new Date(oldest)) / 86400000) : 0;
+    const meta = skuMeta.find(m=>m.sku===sku);
+    const mktPrice = meta?.marketPrice || 0;
+    const game = meta?.game || '—';
+    const mktVal = mktPrice > 0 ? oh * mktPrice : null;
+    const pl = mktVal !== null ? mktVal - cost : null;
+    const returnPct = pl !== null && cost > 0 ? ((pl/cost)*100).toFixed(1) : null;
+    return { sku, game, oh, avgCost, mktPrice, cost, mktVal, pl, returnPct, days };
+  });
+  if (filterVal === 'priced') rows = rows.filter(r => r.mktVal !== null);
+  if (filterVal === 'gain')   rows = rows.filter(r => r.pl !== null && r.pl >= 0);
+  if (filterVal === 'loss')   rows = rows.filter(r => r.pl !== null && r.pl < 0);
+  rows.sort((a,b) => {
+    if (a.pl !== null && b.pl !== null) return b.pl - a.pl;
+    if (a.pl !== null) return -1;
+    if (b.pl !== null) return 1;
+    return b.days - a.days;
+  });
+  const countEl = document.getElementById('inv-cvm-count');
+  const priced = rows.filter(r=>r.mktVal!==null).length;
+  if (countEl) countEl.textContent = `${rows.length} SKU${rows.length!==1?'s':''} · ${priced} priced`;
+  tbody.innerHTML = rows.length ? rows.map(r => {
+    const plColor = r.pl === null ? 'var(--muted)' : r.pl >= 0 ? 'var(--sale)' : 'var(--accent3)';
+    const retColor = r.returnPct === null ? 'var(--muted)' : parseFloat(r.returnPct) >= 0 ? 'var(--sale)' : 'var(--accent3)';
+    const dayColor = r.days >= 180 ? 'var(--accent3)' : r.days >= 90 ? 'var(--accent)' : 'var(--muted)';
+    return `<tr>
+      <td style="font-weight:500;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.sku}">${r.sku}</td>
+      <td style="color:var(--muted)">${r.game}</td>
+      <td>${fmtQty(r.oh)}</td>
+      <td style="color:var(--muted)">${fmt$(r.avgCost)}</td>
+      <td style="color:${r.mktPrice>0?'var(--sale)':'var(--muted)'}">${r.mktPrice>0?fmt$(r.mktPrice):'—'}</td>
+      <td style="color:var(--purchase)">${fmt$(r.cost)}</td>
+      <td style="color:${r.mktVal!==null?'var(--sale)':'var(--muted)'}">${r.mktVal!==null?fmt$(r.mktVal):'—'}</td>
+      <td style="color:${plColor};font-weight:600">${r.pl!==null?fmt$(r.pl):'—'}</td>
+      <td style="color:${retColor}">${r.returnPct!==null?r.returnPct+'%':'—'}</td>
+      <td style="color:${dayColor}">${r.days}d</td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:20px">No sealed inventory on hand.</td></tr>';
+}
+
+function exportCostVsMarket() {
+  const today = new Date();
+  const fmtQty = q => Number.isInteger(q) ? q : parseFloat(q).toFixed(2);
+  const allOnHandSkus = [...new Set(lots.map(l=>l.sku))].filter(sku =>
+    lots.filter(l=>l.sku===sku).reduce((s,l)=>s+l.qtyRemaining,0) > 0
+  );
+  const rows = allOnHandSkus.map(sku => {
+    const skuLots = lots.filter(l=>l.sku===sku&&l.qtyRemaining>0);
+    const oh = skuLots.reduce((s,l)=>s+l.qtyRemaining,0);
+    const cost = skuLots.reduce((s,l)=>s+l.qtyRemaining*l.unitCost,0);
+    const avgCost = oh > 0 ? cost/oh : 0;
+    const oldest = skuLots.reduce((m,l)=>l.date<m?l.date:m, skuLots[0]?.date||'');
+    const days = oldest ? Math.floor((today - new Date(oldest)) / 86400000) : 0;
+    const meta = skuMeta.find(m=>m.sku===sku);
+    const mktPrice = meta?.marketPrice || 0;
+    const game = meta?.game || '';
+    const mktVal = mktPrice > 0 ? oh * mktPrice : '';
+    const pl = mktPrice > 0 ? (oh*mktPrice) - cost : '';
+    const returnPct = mktPrice > 0 && cost > 0 ? (((oh*mktPrice-cost)/cost)*100).toFixed(1) : '';
+    return [sku, game, fmtQty(oh), avgCost.toFixed(2), mktPrice>0?mktPrice.toFixed(2):'', cost.toFixed(2), mktVal!==''?parseFloat(mktVal).toFixed(2):'', pl!==''?parseFloat(pl).toFixed(2):'', returnPct, days];
+  }).sort((a,b) => {
+    const pa = a[7]!==''?parseFloat(a[7]):null, pb = b[7]!==''?parseFloat(b[7]):null;
+    if (pa!==null&&pb!==null) return pb-pa;
+    if (pa!==null) return -1; if (pb!==null) return 1;
+    return parseInt(b[9])-parseInt(a[9]);
+  });
+  const headers = ['SKU','Game','On Hand','Avg Cost','Mkt Price','Cost Basis','Market Value','Unrealized P&L','Return %','Days on Hand'];
+  const escape = v => `"${String(v).replace(/"/g,'""')}"`;
+  const csv = [headers.map(escape).join(','), ...rows.map(r=>r.map(escape).join(','))].join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `sealed-cost-vs-market-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
 function renderLots(){
   const f=document.getElementById('lot-sku-filter').value;
   const filtered=[...lots].filter(l=>!f||l.sku===f).sort((a,b)=>a.sku.localeCompare(b.sku)||a.date.localeCompare(b.date));
@@ -3516,7 +3682,7 @@ function saveSkuMetaForm(){
   if(!sku){ alert('Select a SKU.'); return; }
   upsertSkuMeta(sku, game||null, exp||null, pt||null, mp>0?mp:null, todayIso(), tcgSku||null);
   document.getElementById('meta-mktprice').value='';
-  renderSkuMetaList(); renderInvCharts();
+  renderSkuMetaList(); renderInvCharts(); renderCostVsMarket(); renderInventory();
   sbPushSealed();
 }
 
@@ -4218,15 +4384,14 @@ function renderSummary() {
   const netProfit    = netRev - sealedCOGS;
   const netMargin    = netRev > 0 ? ((netProfit/netRev)*100).toFixed(1) : '0.0';
 
-  // Portfolio value
+  // Portfolio value — use sealed market value if available, else cost
   const sealedCost   = lots.reduce((s,l) => s + l.qtyRemaining * l.unitCost, 0);
   const singlesMkt   = singles.reduce((s,x) => s + x.qtyListed * x.marketPrice, 0);
-  const portfolioVal = sealedCost + singlesMkt;
   const capitalDepl  = lots.reduce((s,l) => s + l.qtyReceived * l.unitCost, 0);
 
   // Set KPI values
   document.getElementById('sum-portfolio').textContent = fmt$(portfolioVal);
-  document.getElementById('sum-portfolio-sub').textContent = `${fmt$(sealedCost)} sealed + ${fmt$(singlesMkt)} singles`;
+  document.getElementById('sum-portfolio-sub').textContent = `${fmt$(sealedMktVal>0?sealedMktVal:sealedCost)} sealed + ${fmt$(singlesMkt)} singles`;
   document.getElementById('sum-deployed').textContent = fmt$(capitalDepl);
   document.getElementById('sum-deployed-sub').textContent = `${fmt$(sealedCost)} still on hand`;
   document.getElementById('sum-net-rev').textContent = fmt$(netRev);
@@ -4246,8 +4411,20 @@ function renderSummary() {
   // Inventory health
   const allSkus = [...new Set(lots.map(l=>l.sku))];
   const onHandSkus = allSkus.filter(sku => lots.filter(l=>l.sku===sku).reduce((s,l)=>s+l.qtyRemaining,0) > 0);
+  const sealedMktVal = onHandSkus.reduce((total, sku) => {
+    const meta = skuMeta.find(m=>m.sku===sku);
+    if (!meta?.marketPrice) return total;
+    const oh = lots.filter(l=>l.sku===sku).reduce((s,l)=>s+l.qtyRemaining,0);
+    return total + oh * meta.marketPrice;
+  }, 0);
+  const sealedPL = sealedMktVal - sealedCost;
+  const portfolioVal = (sealedMktVal > 0 ? sealedMktVal : sealedCost) + singlesMkt;
   document.getElementById('sum-sealed-skus').textContent = onHandSkus.length;
   document.getElementById('sum-sealed-cost').textContent = fmt$(sealedCost);
+  document.getElementById('sum-sealed-mkt').textContent = sealedMktVal > 0 ? fmt$(sealedMktVal) : '—';
+  const plEl = document.getElementById('sum-sealed-pl');
+  plEl.textContent = sealedMktVal > 0 ? fmt$(sealedPL) : '—';
+  plEl.style.color = sealedPL >= 0 ? 'var(--sale)' : 'var(--accent3)';
   document.getElementById('sum-singles-skus').textContent = singles.filter(s=>s.qtyListed>0).length.toLocaleString();
   document.getElementById('sum-singles-mkt').textContent = fmt$(singlesMkt);
 
@@ -4350,6 +4527,44 @@ function renderSummary() {
         </tr>`;
       }).join('')
     : '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:16px">No sealed inventory on hand.</td></tr>';
+
+  // ── Cost vs Market comparison table ──
+  const costMktRows = onHandSkus.map(sku => {
+    const skuLots = lots.filter(l=>l.sku===sku&&l.qtyRemaining>0);
+    const oh = skuLots.reduce((s,l)=>s+l.qtyRemaining,0);
+    const cost = skuLots.reduce((s,l)=>s+l.qtyRemaining*l.unitCost,0);
+    const avgCost = oh > 0 ? cost/oh : 0;
+    const oldest = skuLots.reduce((m,l)=>l.date<m?l.date:m, skuLots[0]?.date||'');
+    const days = oldest ? Math.floor((today - new Date(oldest)) / 86400000) : 0;
+    const meta = skuMeta.find(m=>m.sku===sku);
+    const mktPrice = meta?.marketPrice||0;
+    const game = meta?.game||'—';
+    if (!mktPrice) return null; // only show SKUs with market price entered
+    const mktVal = oh * mktPrice;
+    const pl = mktVal - cost;
+    const returnPct = cost > 0 ? ((pl/cost)*100).toFixed(1) : '0.0';
+    return { sku, game, oh, avgCost, mktPrice, cost, mktVal, pl, returnPct, days };
+  }).filter(Boolean).sort((a,b) => b.pl - a.pl);
+
+  document.getElementById('sum-cost-mkt-body').innerHTML = costMktRows.length
+    ? costMktRows.map(r => {
+        const fmtQty = q => Number.isInteger(q) ? q : q.toFixed(2);
+        const plColor = r.pl >= 0 ? 'var(--sale)' : 'var(--accent3)';
+        const retColor = parseFloat(r.returnPct) >= 0 ? 'var(--sale)' : 'var(--accent3)';
+        return `<tr>
+          <td style="font-weight:500;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.sku}">${r.sku}</td>
+          <td style="color:var(--muted)">${r.game}</td>
+          <td>${fmtQty(r.oh)}</td>
+          <td style="color:var(--muted)">${fmt$(r.avgCost)}</td>
+          <td style="color:var(--sale)">${fmt$(r.mktPrice)}</td>
+          <td style="color:var(--purchase)">${fmt$(r.cost)}</td>
+          <td style="color:var(--sale)">${fmt$(r.mktVal)}</td>
+          <td style="color:${plColor};font-weight:600">${fmt$(r.pl)}</td>
+          <td style="color:${retColor}">${r.returnPct}%</td>
+          <td style="color:${r.days>=90?'var(--accent)':r.days>=180?'var(--accent3)':'var(--muted)'}">${r.days}d</td>
+        </tr>`;
+      }).join('')
+    : '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:16px">No SKUs with market prices entered. Add market prices in the Sealed Inventory → SKU Tagger.</td></tr>';
 
   // ── Monthly trend chart ──
   const monthMap = {};
