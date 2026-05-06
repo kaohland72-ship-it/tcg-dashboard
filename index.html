@@ -1794,7 +1794,7 @@ function renderCostVsMarket() {
   tbody.innerHTML = rows.length ? rows.map(r => {
     const plColor = r.pl === null ? 'var(--muted)' : r.pl >= 0 ? 'var(--sale)' : 'var(--accent3)';
     const retColor = r.returnPct === null ? 'var(--muted)' : parseFloat(r.returnPct) >= 0 ? 'var(--sale)' : 'var(--accent3)';
-    const dayColor = r.days >= 180 ? 'var(--accent3)' : r.days >= 90 ? 'var(--accent)' : 'var(--muted)';
+    const dayColor = r.days >= 365 ? 'var(--sale)' : r.days >= 180 ? 'var(--accent)' : 'var(--accent3)';
     return `<tr>
       <td style="font-weight:500;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.sku}">${r.sku}</td>
       <td style="color:var(--muted)">${r.game}</td>
@@ -4389,6 +4389,18 @@ function renderSummary() {
   const singlesMkt   = singles.reduce((s,x) => s + x.qtyListed * x.marketPrice, 0);
   const capitalDepl  = lots.reduce((s,l) => s + l.qtyReceived * l.unitCost, 0);
 
+  // Inventory health — must calculate before KPI assignments
+  const allSkus = [...new Set(lots.map(l=>l.sku))];
+  const onHandSkus = allSkus.filter(sku => lots.filter(l=>l.sku===sku).reduce((s,l)=>s+l.qtyRemaining,0) > 0);
+  const sealedMktVal = onHandSkus.reduce((total, sku) => {
+    const meta = skuMeta.find(m=>m.sku===sku);
+    if (!meta?.marketPrice) return total;
+    const oh = lots.filter(l=>l.sku===sku).reduce((s,l)=>s+l.qtyRemaining,0);
+    return total + oh * meta.marketPrice;
+  }, 0);
+  const sealedPL = sealedMktVal - sealedCost;
+  const portfolioVal = (sealedMktVal > 0 ? sealedMktVal : sealedCost) + singlesMkt;
+
   // Set KPI values
   document.getElementById('sum-portfolio').textContent = fmt$(portfolioVal);
   document.getElementById('sum-portfolio-sub').textContent = `${fmt$(sealedMktVal>0?sealedMktVal:sealedCost)} sealed + ${fmt$(singlesMkt)} singles`;
@@ -4408,17 +4420,7 @@ function renderSummary() {
   document.getElementById('sum-total-costs').textContent = fmt$(totalCosts);
   document.getElementById('sum-margin-sub').textContent = `${netMargin}% net margin`;
 
-  // Inventory health
-  const allSkus = [...new Set(lots.map(l=>l.sku))];
-  const onHandSkus = allSkus.filter(sku => lots.filter(l=>l.sku===sku).reduce((s,l)=>s+l.qtyRemaining,0) > 0);
-  const sealedMktVal = onHandSkus.reduce((total, sku) => {
-    const meta = skuMeta.find(m=>m.sku===sku);
-    if (!meta?.marketPrice) return total;
-    const oh = lots.filter(l=>l.sku===sku).reduce((s,l)=>s+l.qtyRemaining,0);
-    return total + oh * meta.marketPrice;
-  }, 0);
-  const sealedPL = sealedMktVal - sealedCost;
-  const portfolioVal = (sealedMktVal > 0 ? sealedMktVal : sealedCost) + singlesMkt;
+  // Inventory health cards
   document.getElementById('sum-sealed-skus').textContent = onHandSkus.length;
   document.getElementById('sum-sealed-cost').textContent = fmt$(sealedCost);
   document.getElementById('sum-sealed-mkt').textContent = sealedMktVal > 0 ? fmt$(sealedMktVal) : '—';
@@ -4441,18 +4443,16 @@ function renderSummary() {
     const meta = skuMeta.find(m=>m.sku===sku);
     const mktPrice = meta?.marketPrice||0;
     const entry = { sku, days, oh, cost, mktPrice };
-    if (days < 30)       agingBuckets.fresh.push(entry);
-    else if (days < 90)  agingBuckets.moderate.push(entry);
-    else if (days < 180) agingBuckets.aged.push(entry);
-    else                 agingBuckets.stale.push(entry);
+    if (days < 180)       agingBuckets.fresh.push(entry);
+    else if (days < 365)  agingBuckets.moderate.push(entry);
+    else                  agingBuckets.aged.push(entry);
   });
 
   const agingEl = document.getElementById('sum-aging');
   const agingRows = [
-    { label:'< 30 days',   color:'var(--sale)',    items: agingBuckets.fresh },
-    { label:'30–90 days',  color:'var(--accent)',  items: agingBuckets.moderate },
-    { label:'90–180 days', color:'var(--break)',   items: agingBuckets.aged },
-    { label:'180+ days',   color:'var(--accent3)', items: agingBuckets.stale },
+    { label:'< 180 days',   color:'var(--accent3)', items: agingBuckets.fresh },
+    { label:'180–365 days', color:'var(--accent)',  items: agingBuckets.moderate },
+    { label:'365+ days',    color:'var(--sale)',    items: agingBuckets.aged },
   ];
   agingEl.innerHTML = agingRows.map(b => {
     const cost = b.items.reduce((s,x)=>s+x.cost,0);
@@ -4508,10 +4508,9 @@ function renderSummary() {
   document.getElementById('sum-listing-body').innerHTML = listingRows.length
     ? listingRows.map(r => {
         let signal = '', signalColor = 'var(--muted)';
-        if (r.days >= 180)      { signal = '🔴 Consider liquidating'; signalColor='var(--accent3)'; }
-        else if (r.days >= 90)  { signal = '🟡 Review pricing';       signalColor='var(--accent)'; }
-        else if (r.days >= 30)  { signal = '🟢 Active';               signalColor='var(--sale)'; }
-        else                    { signal = '🔵 Recently received';     signalColor='var(--tcg)'; }
+        if (r.days >= 365)      { signal = '🟢 Matured — consider listing'; signalColor='var(--sale)'; }
+        else if (r.days >= 180) { signal = '🟡 Approaching maturity';        signalColor='var(--accent)'; }
+        else                    { signal = '🔴 Too new to appreciate';        signalColor='var(--accent3)'; }
         const plText = r.unrealizedPL != null
           ? `<span style="color:${r.unrealizedPL>=0?'var(--sale)':'var(--accent3)'}">${fmt$(r.unrealizedPL)}</span>`
           : '<span style="color:var(--muted)">—</span>';
@@ -4522,7 +4521,7 @@ function renderSummary() {
           <td style="color:var(--purchase)">${fmt$(r.cost)}</td>
           <td style="color:var(--muted)">${r.mktPrice>0?fmt$(r.mktPrice):'—'}</td>
           <td>${plText}</td>
-          <td style="color:${r.days>=180?'var(--accent3)':r.days>=90?'var(--accent)':'var(--muted)'}">${r.days}d</td>
+          <td style="color:${r.days>=365?'var(--sale)':r.days>=180?'var(--accent)':'var(--accent3)'}">${r.days}d</td>
           <td style="font-size:10px;color:${signalColor}">${signal}</td>
         </tr>`;
       }).join('')
