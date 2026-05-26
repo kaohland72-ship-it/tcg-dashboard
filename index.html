@@ -1520,19 +1520,19 @@ function renderLog(){
 // FIFO ENGINE
 // ══════════════════════════════════════════════════════════════
 function computeFIFO(sku, qtyNeeded){
-  const skuLots=lots.filter(l=>l.sku===sku&&l.qtyRemaining>0).sort((a,b)=>a.date.localeCompare(b.date)||a.id-b.id);
+  const skuLots=lots.filter(l=>l.sku===sku&&l.qtyRemaining>0).sort((a,b)=>a.date.localeCompare(b.date)||String(a.id).localeCompare(String(b.id)));
   const available=skuLots.reduce((s,l)=>s+l.qtyRemaining,0);
   if(qtyNeeded>available) return {cogs:0,breakdown:[],canFulfill:false,available};
   let remaining=qtyNeeded,cogs=0; const breakdown=[];
   for(const lot of skuLots){
     if(remaining<=0) break;
     const use=Math.min(lot.qtyRemaining,remaining),sub=use*lot.unitCost;
-    breakdown.push({lotId:lot.id,lotDate:lot.date,qtyUsed:use,unitCost:lot.unitCost,subtotal:sub});
+    breakdown.push({lotId:String(lot.id),lotDate:lot.date,qtyUsed:use,unitCost:lot.unitCost,subtotal:sub});
     cogs+=sub; remaining-=use;
   }
   return {cogs,breakdown,canFulfill:true,available};
 }
-function applyFIFO(breakdown){breakdown.forEach(b=>{const lot=lots.find(l=>l.id===b.lotId);if(lot) lot.qtyRemaining-=b.qtyUsed;});}
+function applyFIFO(breakdown){breakdown.forEach(b=>{const lot=lots.find(l=>String(l.id)===String(b.lotId));if(lot) lot.qtyRemaining=Math.max(0,lot.qtyRemaining-b.qtyUsed);});}
 function buildFIFOHtml(breakdown){
   return breakdown.map(b=>`<div class="fifo-row"><span>Lot ${fmtDate(b.lotDate)} — ${b.qtyUsed} unit(s) @ ${fmt$(b.unitCost)}</span><span style="color:var(--accent3)">${fmt$(b.subtotal)}</span></div>`).join('')
     +`<div class="fifo-row tot"><span>Total</span><span style="color:var(--accent3)">${fmt$(breakdown.reduce((s,b)=>s+b.subtotal,0))}</span></div>`;
