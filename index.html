@@ -1032,7 +1032,21 @@ tr:hover td{background:rgba(255,255,255,.018)}
     </div>
 
     <!-- CSV Import -->
-    <div class="sh" style="margin-bottom:12px"><span class="st">CSV Import</span><span style="font-size:10.5px;color:var(--muted)">Replaces quantities & prices; preserves TCGPlayer IDs</span></div>
+    <div class="sh" style="margin-bottom:12px"><span class="st">CSV Import</span><span style="font-size:10.5px;color:var(--muted)">Replaces quantities & prices for the selected game only</span></div>
+
+    <!-- Game scope selector -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+      <span style="font-size:10.5px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase">Import Scope</span>
+      <select id="import-game-scope" onchange="updateScopeNote()" style="padding:5px 12px;font-size:11px;min-width:200px">
+        <option value="">All Games (full replace)</option>
+        <option value="Magic">Magic: The Gathering</option>
+        <option value="Pokemon">Pokemon</option>
+        <option value="Lorcana">Lorcana</option>
+        <option value="Yu-Gi-Oh">Yu-Gi-Oh</option>
+        <option value="One Piece">One Piece</option>
+      </select>
+      <span id="import-scope-note" style="font-size:10px;color:var(--muted)">Select a game to replace only that game's singles — other games will be preserved.</span>
+    </div>
 
     <div class="drop-zone" id="drop-zone">
       <input type="file" accept=".csv" id="csv-file-input" onchange="handleFileSelect(event)"/>
@@ -2178,6 +2192,7 @@ function parseCSV(text) {
 const FIELD_ALIASES = {
   name:           ['name','card name','product name','title','card','item name','product'],
   tcgId:          ['product id','tcgplayer id','tcgplayer id','tcg id','sku','product_id','productid','tcgplayerid','id'],
+  productLine:    ['product line','game','product_line','line','category'],
   set:            ['set name','set','expansion','series','set_name'],
   rarity:         ['rarity','card rarity','rarity name','printing','foiling'],
   condition:      ['condition','cond','grade','quality'],
@@ -2291,6 +2306,7 @@ function previewImport() {
     const name  = getCol(row, 'name');
     if (!name) return null;
     const tcgId           = getCol(row, 'tcgId');
+    const productLine     = getCol(row, 'productLine') || '';
     const set             = getCol(row, 'set');
     const rarity          = normalizeRarity(getCol(row, 'rarity'));
     const rawCond         = getCol(row, 'condition');
@@ -2311,7 +2327,7 @@ function previewImport() {
     const nameKey = (name.toLowerCase().trim() + '||' + condition).toLowerCase();
     const existing = (tcgKey && byTcgIdCond[tcgKey]) || byNameCond[nameKey];
     const status = existing ? 'update' : 'new';
-    return { name, tcgId, set, rarity, condition, qtyListed, marketPrice, tcgListedPrice, status, existingId: existing?.id || null };
+    return { name, tcgId, productLine, set, rarity, condition, qtyListed, marketPrice, tcgListedPrice, status, existingId: existing?.id || null };
   }).filter(Boolean);
 
   const newCount    = previewData.filter(r=>r.status==='new').length;
@@ -2539,6 +2555,7 @@ function updateStorageGauge() {
 function confirmImport() {
   if (!previewData.length) return;
   const now = todayIso();
+  const gameScope = document.getElementById('import-game-scope')?.value || '';
 
   // Build lookup — TCGPlayer ID+condition is primary key
   const byTcgIdCond2 = {};
@@ -2551,7 +2568,7 @@ function confirmImport() {
   // Track which existing IDs are present in this import
   const seenIds = new Set();
 
-  // Build the new singles list from the CSV — this is now the full source of truth
+  // Build the new singles list from the CSV
   const newSingles = previewData.map(r => {
     const tcgKey2  = r.tcgId ? (r.tcgId.trim()+'||'+(r.condition||'NM')).toLowerCase() : null;
     const nameKey2 = (r.name.toLowerCase().trim()+'||'+(r.condition||'NM')).toLowerCase();
@@ -2559,7 +2576,7 @@ function confirmImport() {
     const id = existing ? existing.id : Date.now() + Math.random();
     if (existing) seenIds.add(existing.id);
 
-    // Preserve existing price history — only add new snapshot if price changed or no history yet
+    // Preserve existing price history
     let priceHistory = existing?.priceHistory ? [...existing.priceHistory] : [];
     if (r.marketPrice > 0) {
       const lastSnap = priceHistory[priceHistory.length - 1];
@@ -2570,7 +2587,6 @@ function confirmImport() {
         if (snapIdx >= 0) priceHistory[snapIdx] = snap;
         else priceHistory.push(snap);
       } else if (lastSnap && lastSnap.date === now) {
-        // Same price, same day — just update qty in place
         priceHistory[priceHistory.length - 1] = { ...lastSnap, qty:r.qtyListed, totalValue:r.marketPrice * r.qtyListed };
       }
     }
@@ -2579,6 +2595,7 @@ function confirmImport() {
       id,
       name:           r.name,
       tcgId:          r.tcgId          || existing?.tcgId          || null,
+      productLine:    r.productLine    || existing?.productLine    || '',
       set:            r.set            || existing?.set            || '',
       rarity:         r.rarity         || existing?.rarity         || '',
       condition:      r.condition      || existing?.condition      || 'NM',
@@ -2590,33 +2607,59 @@ function confirmImport() {
     };
   });
 
-  // Full replace — CSV is the complete source of truth
-  singles = newSingles;
+  if (gameScope) {
+    // Game-scoped replace — keep cards from other games, replace only this game's cards
+    const otherGames = singles.filter(s => {
+      const pl = (s.productLine || '').toLowerCase();
+      const scopeLower = gameScope.toLowerCase();
+      // Match on productLine field or fall back to set-based heuristic
+      if (pl) return !pl.includes(scopeLower) && pl !== '';
+      return false; // if no productLine stored, include in replacement scope
+    });
+    singles = [...otherGames, ...newSingles];
+    const scopeNote = ` (${gameScope} only — ${otherGames.length} cards from other games preserved)`;
+    pruneSnapshots();
+    const purged = purgeZeroedCards();
+    const added = newSingles.filter(s => !seenIds.has(s.id) || !singles.find(x=>x.id===s.id)).length;
+    const updated = newSingles.length - added;
+    imports.push({ date:now, added, updated, purged, total:previewData.length, scope:gameScope });
+    save(); updateStorageGauge(); sbSyncAfterImport(); resetImport();
+    renderSingles(); renderSinglesKPIs(); renderImportHistory(); renderSinglesCharts(); renderSnapUI(); updateHeader();
+    alert(`✓ Import complete: ${added} new · ${updated} updated · ${purged} removed${scopeNote}.`);
+  } else {
+    // Full replace — CSV is the complete source of truth for all games
+    singles = newSingles;
+    pruneSnapshots();
+    const purged = purgeZeroedCards();
+    const added = previewData.filter(r => {
+      const tcgKey2  = r.tcgId ? (r.tcgId.trim()+'||'+(r.condition||'NM')).toLowerCase() : null;
+      const nameKey2 = (r.name.toLowerCase().trim()+'||'+(r.condition||'NM')).toLowerCase();
+      return !(tcgKey2 && byTcgIdCond2[tcgKey2]) && !byNameCond2[nameKey2];
+    }).length;
+    const updated = previewData.length - added;
+    imports.push({ date:now, added, updated, purged, total:previewData.length });
+    save(); updateStorageGauge(); sbSyncAfterImport(); resetImport();
+    renderSingles(); renderSinglesKPIs(); renderImportHistory(); renderSinglesCharts(); renderSnapUI(); updateHeader();
+    const purgedNote = purged > 0 ? ` · ${purged} removed (not in export)` : '';
+    alert(`✓ Import complete: ${added} new · ${updated} updated · ${singles.reduce((s,x)=>s+(x.priceHistory?.length||0),0)} snapshots stored${purgedNote}.`);
+  }
+}
 
-  // ── Storage safeguards ──
-  pruneSnapshots();                    // cap price history at SNAP_LIMIT per card
-  const purged = purgeZeroedCards();   // remove all zero-qty cards immediately
-
-  const added = previewData.filter(r => {
-    const tcgKey2  = r.tcgId ? (r.tcgId.trim()+'||'+(r.condition||'NM')).toLowerCase() : null;
-    const nameKey2 = (r.name.toLowerCase().trim()+'||'+(r.condition||'NM')).toLowerCase();
-    return !(tcgKey2 && byTcgIdCond2[tcgKey2]) && !byNameCond2[nameKey2];
-  }).length;
-  const updated = previewData.length - added;
-
-  imports.push({ date:now, added, updated, purged, total:previewData.length });
-  save();
-  updateStorageGauge();
-  sbSyncAfterImport(); // async — fires in background, doesn't block UI
-  resetImport();
-  renderSingles();
-  renderSinglesKPIs();
-  renderImportHistory();
-  renderSinglesCharts();
-  renderSnapUI();
-  updateHeader();
-  const purgedNote = purged > 0 ? ` · ${purged} removed (not in export)` : '';
-  alert(`✓ Import complete: ${added} new · ${updated} updated · ${singles.reduce((s,x)=>s+(x.priceHistory?.length||0),0)} snapshots stored${purgedNote}.`);
+function updateScopeNote() {
+  const scope = document.getElementById('import-game-scope')?.value || '';
+  const note  = document.getElementById('import-scope-note');
+  if (!note) return;
+  if (!scope) {
+    note.textContent = 'All Games selected — replaces your entire singles inventory with this CSV.';
+    note.style.color = 'var(--accent3)';
+  } else {
+    const otherCount = singles.filter(s => {
+      const pl = (s.productLine || '').toLowerCase();
+      return pl && !pl.includes(scope.toLowerCase());
+    }).length;
+    note.textContent = `${scope} selected — only ${scope} cards will be replaced. ${otherCount} cards from other games will be preserved.`;
+    note.style.color = 'var(--sale)';
+  }
 }
 
 function resetImport() {
