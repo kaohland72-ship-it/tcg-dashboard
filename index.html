@@ -2608,19 +2608,20 @@ function confirmImport() {
   });
 
   if (gameScope) {
-    // Game-scoped replace — keep cards from other games, replace only this game's cards
+    // Game-scoped replace — keep only cards definitively from OTHER games
+    // Cards with no productLine stored are assumed to belong to the import scope
+    // (since they were imported before productLine tracking was added)
+    const scopeLower = gameScope.toLowerCase();
     const otherGames = singles.filter(s => {
-      const pl = (s.productLine || '').toLowerCase();
-      const scopeLower = gameScope.toLowerCase();
-      // Match on productLine field or fall back to set-based heuristic
-      if (pl) return !pl.includes(scopeLower) && pl !== '';
-      return false; // if no productLine stored, include in replacement scope
+      const pl = (s.productLine || '').toLowerCase().trim();
+      // Only keep if we have a productLine AND it doesn't match the current scope
+      return pl !== '' && !pl.includes(scopeLower);
     });
     singles = [...otherGames, ...newSingles];
     const scopeNote = ` (${gameScope} only — ${otherGames.length} cards from other games preserved)`;
     pruneSnapshots();
     const purged = purgeZeroedCards();
-    const added = newSingles.filter(s => !seenIds.has(s.id) || !singles.find(x=>x.id===s.id)).length;
+    const added   = newSingles.filter(s => !byTcgIdCond2[s.tcgId?(s.tcgId.trim()+'||'+(s.condition||'NM')).toLowerCase():''] && !byNameCond2[(s.name.toLowerCase().trim()+'||'+(s.condition||'NM')).toLowerCase()]).length;
     const updated = newSingles.length - added;
     imports.push({ date:now, added, updated, purged, total:previewData.length, scope:gameScope });
     save(); updateStorageGauge(); sbSyncAfterImport(); resetImport();
