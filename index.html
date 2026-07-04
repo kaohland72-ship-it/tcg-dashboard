@@ -238,15 +238,10 @@ tr:hover td{background:rgba(255,255,255,.018)}
 .month-card.best .mc-month{color:var(--accent)}
 
 /* Bar chart */
-.bar-chart{background:var(--surface2);border:1px solid var(--border);border-radius:11px;padding:18px 18px 12px;margin-bottom:22px}
-.bar-chart-title{font-family:'Syne',sans-serif;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:16px}
-.bars-wrap{display:flex;align-items:flex-end;gap:5px;height:120px;padding-bottom:22px;position:relative;border-bottom:1px solid var(--border)}
-.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:3px;min-width:0;position:relative}
-.bar-fill{width:100%;border-radius:4px 4px 0 0;transition:height .4s ease;min-height:2px;cursor:pointer;position:relative}
-.bar-fill:hover{opacity:.8}
-.bar-fill .bar-tip{display:none;position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:3px 7px;font-size:9.5px;white-space:nowrap;margin-bottom:4px;z-index:20}
-.bar-fill:hover .bar-tip{display:block}
-.bar-label{font-size:8.5px;color:var(--muted);letter-spacing:.4px;text-align:center;position:absolute;bottom:-18px;left:0;right:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-chart{background:var(--surface2);border:1px solid var(--border);border-radius:11px;padding:18px 18px 16px;margin-bottom:22px}
+.bar-chart-title{font-family:'Syne',sans-serif;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:14px}
+.bars-wrap{width:100%;overflow:hidden;border-radius:6px}
+.bars-wrap canvas{display:block;width:100%!important}
 
 /* Sold table top cards */
 .rank-num{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:4px;font-size:10px;font-weight:700;font-family:'Syne',sans-serif;flex-shrink:0}
@@ -3532,21 +3527,31 @@ function renderRevChart() {
 
   const sorted = [...revMonths].sort((a,b) => a.monthKey.localeCompare(b.monthKey)).slice(-24);
   const barsWrap = document.getElementById('rev-bars');
-  barsWrap.innerHTML = '<canvas id="rev-canvas" style="width:100%;display:block"></canvas>';
+  barsWrap.innerHTML = '<canvas id="rev-canvas"></canvas>';
   const canvas = document.getElementById('rev-canvas');
-  const W = barsWrap.offsetWidth || 800;
-  canvas.width = W; canvas.height = 260;
+
+  // Size canvas to container — use devicePixelRatio for crisp rendering
+  const dpr = window.devicePixelRatio || 1;
+  const displayW = barsWrap.clientWidth || 800;
+  const displayH = 280;
+  canvas.style.width  = displayW + 'px';
+  canvas.style.height = displayH + 'px';
+  canvas.width  = displayW * dpr;
+  canvas.height = displayH * dpr;
   const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const W = displayW;
+  const H = displayH;
 
   const pad = { t:30, r:20, b:50, l:72 };
   const cw = W - pad.l - pad.r;
-  const ch = canvas.height - pad.t - pad.b;
+  const ch = H - pad.t - pad.b;
   const maxVal = Math.max(...sorted.map(m => m.grossSales||m.revenue||0), 1);
   const avgGross = revMonths.reduce((s,m) => s+(m.grossSales||m.revenue||0), 0) / revMonths.length;
   const barW = (cw / sorted.length) * 0.65;
   const barGap = cw / sorted.length;
 
-  ctx.clearRect(0, 0, W, canvas.height);
+  ctx.clearRect(0, 0, W, H);
 
   // Gridlines + Y labels
   for (let i = 0; i <= 5; i++) {
@@ -3581,8 +3586,8 @@ function renderRevChart() {
     // Month labels
     const lbl = fmtMonthKey(m.monthKey);
     ctx.fillStyle='#6b7280'; ctx.font='9px sans-serif'; ctx.textAlign='center';
-    ctx.fillText(lbl.slice(0,3), pad.l+i*barGap+barGap/2, canvas.height-28);
-    ctx.fillText(lbl.slice(4),   pad.l+i*barGap+barGap/2, canvas.height-18);
+    ctx.fillText(lbl.slice(0,3), pad.l+i*barGap+barGap/2, H-28);
+    ctx.fillText(lbl.slice(4),   pad.l+i*barGap+barGap/2, H-16);
   });
 
   // Average line
