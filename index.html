@@ -3529,18 +3529,93 @@ function renderRevChart() {
   const wrap = document.getElementById('rev-chart-wrap');
   if (!revMonths.length) { wrap.style.display='none'; return; }
   wrap.style.display = 'block';
+
   const sorted = [...revMonths].sort((a,b) => a.monthKey.localeCompare(b.monthKey)).slice(-24);
-  const maxRev = Math.max(...sorted.map(m => m.grossSales||0)) || 1;
-  const bars = document.getElementById('rev-bars');
-  bars.innerHTML = sorted.map(m => {
-    const h = Math.max(4, Math.round(((m.grossSales||0)/maxRev)*110));
-    return `<div class="bar-col">
-      <div class="bar-fill" style="height:${h}px;background:var(--sale)">
-        <div class="bar-tip">${fmtMonthKey(m.monthKey)}: ${fmt$(m.grossSales||0)}</div>
-      </div>
-      <div class="bar-label">${fmtMonthKey(m.monthKey).replace(' ','<br>')}</div>
-    </div>`;
-  }).join('');
+  const barsWrap = document.getElementById('rev-bars');
+  barsWrap.innerHTML = '<canvas id="rev-canvas" style="width:100%;display:block"></canvas>';
+  const canvas = document.getElementById('rev-canvas');
+  const W = barsWrap.offsetWidth || 800;
+  canvas.width = W; canvas.height = 260;
+  const ctx = canvas.getContext('2d');
+
+  const pad = { t:30, r:20, b:50, l:72 };
+  const cw = W - pad.l - pad.r;
+  const ch = canvas.height - pad.t - pad.b;
+  const maxVal = Math.max(...sorted.map(m => m.grossSales||m.revenue||0), 1);
+  const avgGross = revMonths.reduce((s,m) => s+(m.grossSales||m.revenue||0), 0) / revMonths.length;
+  const barW = (cw / sorted.length) * 0.65;
+  const barGap = cw / sorted.length;
+
+  ctx.clearRect(0, 0, W, canvas.height);
+
+  // Gridlines + Y labels
+  for (let i = 0; i <= 5; i++) {
+    const y = pad.t + ch - (i/5)*ch;
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(pad.l+cw,y); ctx.stroke();
+    ctx.fillStyle='#6b7280'; ctx.font='9px sans-serif'; ctx.textAlign='right';
+    ctx.fillText(fmt$(maxVal*i/5), pad.l-5, y+3);
+  }
+
+  // Stacked bars
+  sorted.forEach((m, i) => {
+    const x = pad.l + i*barGap + (barGap-barW)/2;
+    const product  = m.productAmount  || 0;
+    const shipping = m.shippingAmount || 0;
+    const gross    = m.grossSales || m.revenue || 0;
+    const prodH  = (product/maxVal)*ch;
+    const shipH  = (shipping/maxVal)*ch;
+    const restH  = Math.max(0, ((gross-product-shipping)/maxVal)*ch);
+
+    // Product — teal
+    ctx.fillStyle = 'rgba(52,211,153,0.85)';
+    ctx.fillRect(x, pad.t+ch-prodH, barW, prodH);
+    // Shipping — purple
+    ctx.fillStyle = 'rgba(167,139,250,0.85)';
+    ctx.fillRect(x, pad.t+ch-prodH-shipH, barW, shipH);
+    // Remainder
+    if (restH > 1) {
+      ctx.fillStyle = 'rgba(107,114,128,0.4)';
+      ctx.fillRect(x, pad.t+ch-prodH-shipH-restH, barW, restH);
+    }
+    // Month labels
+    const lbl = fmtMonthKey(m.monthKey);
+    ctx.fillStyle='#6b7280'; ctx.font='9px sans-serif'; ctx.textAlign='center';
+    ctx.fillText(lbl.slice(0,3), pad.l+i*barGap+barGap/2, canvas.height-28);
+    ctx.fillText(lbl.slice(4),   pad.l+i*barGap+barGap/2, canvas.height-18);
+  });
+
+  // Average line
+  const avgY = pad.t + ch - (avgGross/maxVal)*ch;
+  ctx.beginPath(); ctx.setLineDash([6,4]);
+  ctx.strokeStyle='rgba(232,197,71,0.9)'; ctx.lineWidth=2;
+  ctx.moveTo(pad.l, avgY); ctx.lineTo(pad.l+cw, avgY); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='#e8c547'; ctx.font='bold 9px sans-serif'; ctx.textAlign='left';
+  ctx.fillText(`Avg ${fmt$(avgGross)} (${revMonths.length}mo)`, pad.l+4, avgY-5);
+
+  // Legend
+  const items = [
+    {color:'rgba(52,211,153,0.85)', label:'Product'},
+    {color:'rgba(167,139,250,0.85)',label:'Shipping'},
+    {color:'rgba(232,197,71,0.9)', label:`${revMonths.length}-Month Avg`, dashed:true},
+  ];
+  let lx = pad.l;
+  items.forEach(item => {
+    if (item.dashed) {
+      ctx.strokeStyle=item.color; ctx.lineWidth=2; ctx.setLineDash([6,4]);
+      ctx.beginPath(); ctx.moveTo(lx,14); ctx.lineTo(lx+18,14); ctx.stroke();
+      ctx.setLineDash([]);
+    } else {
+      ctx.fillStyle=item.color; ctx.fillRect(lx,8,14,10);
+    }
+    ctx.fillStyle='#e8eaf0'; ctx.font='9px sans-serif'; ctx.textAlign='left';
+    ctx.fillText(item.label, lx+20, 17);
+    lx += ctx.measureText(item.label).width + 40;
+  });
+
+  const titleEl = document.querySelector('.bar-chart-title');
+  if (titleEl) titleEl.textContent = `Monthly Gross Sales — ${sorted.length} month${sorted.length!==1?'s':''} shown`;
 }
 
 function renderRevImportHist() {
