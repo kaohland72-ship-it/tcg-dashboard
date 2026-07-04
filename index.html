@@ -1293,71 +1293,63 @@ tr:hover td{background:rgba(255,255,255,.018)}
 <!-- ══════════════ TCG REVENUE ══════════════ -->
 <div id="tab-revenue" class="tab-panel">
   <div class="tab-panel-inner">
+
+    <!-- KPI cards -->
     <div class="cards c4g" style="margin-bottom:22px">
-      <div class="card hl-rev"><div class="lbl">Total TCG Revenue</div><div class="val" id="rev-total" style="color:var(--sale)">$0.00</div><div class="sub" id="rev-total-sub">all time</div></div>
+      <div class="card hl-rev"><div class="lbl">Total Gross Sales</div><div class="val" id="rev-total" style="color:var(--sale)">$0.00</div><div class="sub" id="rev-total-sub">all time</div></div>
+      <div class="card"><div class="lbl">Total Orders</div><div class="val" id="rev-orders" style="color:var(--text)">0</div><div class="sub" id="rev-orders-sub">all time</div></div>
+      <div class="card"><div class="lbl">Total Fees Paid</div><div class="val" id="rev-fees-total" style="color:var(--accent3)">$0.00</div><div class="sub" id="rev-fees-sub">all time</div></div>
+      <div class="card hl"><div class="lbl">Net Sales (after fees)</div><div class="val" id="rev-net-total" style="color:var(--sale)">$0.00</div><div class="sub" id="rev-net-sub">all time</div></div>
+    </div>
+    <div class="cards c4g" style="margin-bottom:22px">
       <div class="card"><div class="lbl">Best Month</div><div class="val" id="rev-best-month" style="font-size:13px;line-height:1.3">—</div><div class="sub" id="rev-best-val"></div></div>
-      <div class="card"><div class="lbl">Monthly Average</div><div class="val" id="rev-avg" style="color:var(--text)">$0.00</div><div class="sub" id="rev-avg-sub">per month tracked</div></div>
-      <div class="card hl"><div class="lbl">Last Import</div><div class="val" id="rev-last-import" style="font-size:13px">—</div><div class="sub" id="rev-last-sub">no imports yet</div></div>
+      <div class="card"><div class="lbl">Monthly Avg Gross</div><div class="val" id="rev-avg" style="color:var(--text)">$0.00</div><div class="sub" id="rev-avg-sub">per month tracked</div></div>
+      <div class="card"><div class="lbl">Avg Order Value</div><div class="val" id="rev-aov" style="color:var(--text)">$0.00</div><div class="sub">gross ÷ orders</div></div>
+      <div class="card"><div class="lbl">Last Import</div><div class="val" id="rev-last-import" style="font-size:13px">—</div><div class="sub" id="rev-last-sub">no imports yet</div></div>
     </div>
 
+    <!-- Import section -->
     <div class="sh" style="margin-bottom:12px">
       <span class="st">Import Monthly Revenue</span>
-      <span style="font-size:10.5px;color:var(--muted)">Existing months are overwritten; new months are appended</span>
+      <span style="font-size:10.5px;color:var(--muted)">Select the month then drop your TCGPlayer Sales Summary export</span>
     </div>
+
+    <!-- Month selector -->
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+      <span style="font-size:10.5px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase">Month</span>
+      <select id="rev-month-sel" style="padding:5px 12px;font-size:11px">
+        <option value="">— Select month —</option>
+      </select>
+      <span style="font-size:10px;color:var(--muted)">Select the month this export covers, then drop the CSV below.</span>
+    </div>
+
     <div class="drop-zone" id="rev-drop-zone" style="margin-bottom:16px">
       <input type="file" accept=".csv" id="rev-csv-input" onchange="handleRevFileSelect(event)"/>
       <div class="dz-icon">💰</div>
-      <div class="dz-title">Drop your TCGPlayer Revenue Summary CSV here</div>
-      <div class="dz-sub">or click to browse · one row per month with a revenue/sales total column<br/>Map your columns after upload — Month and Revenue are required</div>
-      <div class="dz-badge">CSV · MONTHLY REVENUE</div>
-    </div>
-
-    <div class="mapper-box" id="rev-mapper-box">
-      <div class="mapper-title">Map CSV Columns → Fields</div>
-      <div class="hint" style="margin-bottom:14px"><strong style="color:var(--text)">Month</strong> and <strong style="color:var(--text)">Revenue</strong> are required. Month can be "YYYY-MM", "Jan 2025", a date, or similar.</div>
-      <div class="mapper-grid" id="rev-mapper-grid"></div>
-      <div class="mapper-actions">
-        <button class="btn btn-tcg" onclick="previewRevImport()">Preview →</button>
-        <button class="btn btn-outline btn-sm" onclick="resetRevImport()">Cancel</button>
-        <div class="mapper-summary" id="rev-mapper-summary"></div>
-      </div>
-    </div>
-
-    <div class="preview-box" id="rev-preview-box">
-      <div class="preview-header">
-        <span class="preview-title" id="rev-preview-title">Revenue Import Preview</span>
-        <div style="display:flex;gap:8px">
-          <button class="btn btn-sale btn-sm" onclick="confirmRevImport()">✓ Import Revenue</button>
-          <button class="btn btn-outline btn-sm" onclick="backToRevMapper()">← Remap</button>
-          <button class="btn btn-danger btn-sm" onclick="resetRevImport()">Cancel</button>
-        </div>
-      </div>
-      <div class="preview-scroll">
-        <table><thead><tr><th>Status</th><th>Month</th><th>Revenue</th><th>Orders</th><th>Notes</th></tr></thead>
-        <tbody id="rev-preview-body"></tbody></table>
-      </div>
+      <div class="dz-title">Drop your TCGPlayer Sales Summary CSV here</div>
+      <div class="dz-sub">or click to browse · single-row summary export from TCGPlayer<br/>Captures Gross Sales, Product Amount, Shipping, Order Count, and Total Fees</div>
+      <div class="dz-badge">CSV · SALES SUMMARY</div>
     </div>
 
     <div id="rev-import-hist" class="import-hist" style="display:none"></div>
 
     <!-- Bar chart -->
     <div class="bar-chart" id="rev-chart-wrap" style="display:none">
-      <div class="bar-chart-title">Monthly Revenue — last 24 months</div>
+      <div class="bar-chart-title">Monthly Gross Sales — last 24 months</div>
       <div class="bars-wrap" id="rev-bars"></div>
     </div>
 
-    <div class="sh" style="margin-top:4px">
+    <!-- Ledger -->
+    <div class="sh" style="margin-top:20px">
       <span class="st">Monthly Breakdown</span>
-      <div style="display:flex;gap:8px;align-items:center">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <select id="rev-year-filter" onchange="renderRevenue()" style="padding:4px 9px;font-size:11px;max-width:110px"><option value="">All Years</option></select>
+        <button class="btn btn-sm btn-outline" onclick="exportRevLedger()">⬇ Export CSV</button>
         <button class="btn btn-danger btn-sm" onclick="clearRevData()">Clear All</button>
       </div>
     </div>
-    <div class="month-grid" id="rev-month-grid" style="margin-top:10px"></div>
-
-    <div class="sh" style="margin-top:20px"><span class="st">Revenue Ledger</span><span id="rev-ledger-count" style="font-size:10.5px;color:var(--muted)"></span></div>
-    <div class="tw sc" style="max-height:340px;margin-top:10px">
-      <table><thead><tr><th>Month</th><th>Revenue</th><th>Orders</th><th>Avg Order Value</th><th>Notes</th><th></th></tr></thead>
+    <div class="tw sc" style="max-height:400px;margin-top:10px">
+      <table><thead><tr><th>Month</th><th>Gross Sales</th><th>Product</th><th>Shipping</th><th>Orders</th><th>Avg Order</th><th>Total Fees</th><th>Net Sales</th><th></th></tr></thead>
       <tbody id="rev-ledger-body"></tbody></table>
     </div>
   </div>
@@ -1473,7 +1465,7 @@ function switchTab(id, btn) {
   if (id==='inventory') { populateInvDropdowns(); renderInventory(); renderLots(); renderReceiptLedger(); renderSalesLedger(); renderBreakLedger(); renderAuditLog(); renderInvCharts(); }
   if (id==='singles')   { renderSingles(); renderSinglesKPIs(); renderImportHistory(); renderSinglesCharts(); renderSnapUI(); }
   if (id==='sold')      { renderSold(); renderSoldKPIs(); renderSoldImportHist(); }
-  if (id==='revenue')   { renderRevenue(); renderRevKPIs(); renderRevChart(); renderRevImportHist(); }
+  if (id==='revenue')   { populateRevMonthSel(); renderRevenue(); renderRevKPIs(); renderRevChart(); renderRevImportHist(); }
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -3309,174 +3301,248 @@ function renderSoldImportHist() {
 }
 
 // ══════════════════════════════════════════════════════════════
-// REVENUE — CSV
+// REVENUE — TCGPlayer Sales Summary Import
 // ══════════════════════════════════════════════════════════════
+
+// Populate month selector on page load and when tab opens
+function populateRevMonthSel() {
+  const sel = document.getElementById('rev-month-sel');
+  if (!sel) return;
+  const prev = sel.value;
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const now = new Date();
+  const options = ['<option value="">— Select month —</option>'];
+  // Generate last 24 months
+  for (let i = 0; i < 24; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const label = `${months[d.getMonth()]} ${d.getFullYear()}`;
+    const existing = revMonths.find(m => m.monthKey === key);
+    options.push(`<option value="${key}"${key===prev?' selected':''}>${label}${existing?' (imported)':''}</option>`);
+  }
+  sel.innerHTML = options.join('');
+}
+
 function handleRevFileSelect(e) {
-  const file=e.target.files[0]; if(!file) return;
-  const r=new FileReader(); r.onload=ev=>processRevCSV(ev.target.result,file.name); r.readAsText(file);
-}
-function processRevCSV(text, filename) {
-  const parsed=parseCSV(text);
-  if(parsed.length<2){alert('CSV appears empty.');return;}
-  revCsvHeaders=parsed[0]; revCsvRows=parsed.slice(1).filter(r=>r.some(c=>c.trim()));
-  revCsvMapped=autoDetectWith(revCsvHeaders,REV_ALIASES);
-  buildRevMapper(filename);
-}
-function buildRevMapper(filename){
-  const FIELDS=[{key:'month',label:'Month',req:true},{key:'revenue',label:'Revenue ($)',req:true},{key:'orders',label:'Order Count',req:false},{key:'notes',label:'Notes',req:false}];
-  document.getElementById('rev-mapper-grid').innerHTML=FIELDS.map(f=>`<div class="fg"><label>${f.label}${f.req?' <span style="color:var(--accent3)">*</span>':''}</label><select id="rmap-${f.key}" onchange="revCsvMapped['${f.key}']=this.value||null"><option value="">— skip —</option>${revCsvHeaders.map(h=>`<option value="${h}"${revCsvMapped[f.key]===h?' selected':''}>${h}</option>`).join('')}</select></div>`).join('');
-  document.getElementById('rev-mapper-summary').textContent=`${revCsvRows.length} data rows · ${revCsvHeaders.length} columns · ${filename}`;
-  document.getElementById('rev-mapper-box').classList.add('visible');
-  document.getElementById('rev-preview-box').classList.remove('visible');
-  document.getElementById('rev-mapper-box').scrollIntoView({behavior:'smooth',block:'start'});
-}
-function backToRevMapper(){document.getElementById('rev-preview-box').classList.remove('visible');document.getElementById('rev-mapper-box').classList.add('visible');}
-
-// Parse month string → YYYY-MM key
-function parseMonthKey(raw) {
-  if(!raw) return null;
-  const s=raw.trim();
-  // YYYY-MM
-  if(/^\d{4}-\d{2}$/.test(s)) return s;
-  // MM/YYYY or MM-YYYY
-  const mdy=/^(\d{1,2})[\/\-](\d{4})$/.exec(s);
-  if(mdy) return `${mdy[2]}-${mdy[1].padStart(2,'0')}`;
-  // Month YYYY or Mon YYYY
-  const months={january:'01',february:'02',march:'03',april:'04',may:'05',june:'06',july:'07',august:'08',september:'09',october:'10',november:'11',december:'12',jan:'01',feb:'02',mar:'03',apr:'04',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};
-  const my=/^([a-zA-Z]+)\s+(\d{4})$/.exec(s);
-  if(my&&months[my[1].toLowerCase()]) return `${my[2]}-${months[my[1].toLowerCase()]}`;
-  // Try Date parse for anything else — pull year+month
-  const d=new Date(s); if(!isNaN(d)) return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-  return null;
-}
-function fmtMonthKey(key){if(!key) return '—';const[y,m]=key.split('-');const names=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return `${names[parseInt(m)-1]} ${y}`;}
-
-// ── REV PREVIEW ──
-function previewRevImport(){
-  ['month','revenue','orders','notes'].forEach(k=>{const el=document.getElementById('rmap-'+k);if(el) revCsvMapped[k]=el.value||null;});
-  if(!revCsvMapped.month||!revCsvMapped.revenue){alert('Month and Revenue columns are required.');return;}
-  const getCol=(row,key)=>{if(!revCsvMapped[key]) return '';const i=revCsvHeaders.indexOf(revCsvMapped[key]);return i>=0?(row[i]||'').trim():'';}; 
-  const existing={};
-  revMonths.forEach(m=>{existing[m.monthKey]=m;});
-
-  revPreviewData=revCsvRows.map(row=>{
-    const rawMonth=getCol(row,'month'), monthKey=parseMonthKey(rawMonth);
-    if(!monthKey) return null;
-    const revenue=parseFloat(getCol(row,'revenue').replace(/[^0-9.]/g,''))||0;
-    const orders=parseInt(getCol(row,'orders').replace(/[^0-9]/g,''))||0;
-    const notes=getCol(row,'notes');
-    const status=existing[monthKey]?'update':'new';
-    return {monthKey,revenue,orders,notes,status};
-  }).filter(Boolean);
-
-  document.getElementById('rev-preview-title').textContent=`Preview — ${revPreviewData.length} months`;
-  document.getElementById('rev-preview-body').innerHTML=revPreviewData.map(r=>`<tr>
-    <td><span class="tag-${r.status}">${r.status.toUpperCase()}</span></td>
-    <td style="font-weight:500">${fmtMonthKey(r.monthKey)}</td>
-    <td style="color:var(--sale)">${fmt$(r.revenue)}</td>
-    <td style="color:var(--muted)">${r.orders||'—'}</td>
-    <td style="color:var(--muted)">${r.notes||'—'}</td>
-  </tr>`).join('');
-  document.getElementById('rev-mapper-box').classList.remove('visible');
-  document.getElementById('rev-preview-box').classList.add('visible');
-  document.getElementById('rev-preview-box').scrollIntoView({behavior:'smooth',block:'start'});
+  const file = e.target.files[0]; if (!file) return;
+  const monthKey = document.getElementById('rev-month-sel')?.value;
+  if (!monthKey) {
+    alert('Please select a month before importing.');
+    document.getElementById('rev-csv-input').value = '';
+    return;
+  }
+  const r = new FileReader();
+  r.onload = ev => processRevCSV(ev.target.result, monthKey, file.name);
+  r.readAsText(file);
 }
 
-// ── REV CONFIRM ──
-function confirmRevImport(){
-  if(!revPreviewData.length) return;
-  const now=todayIso(); let added=0, updated=0;
-  revPreviewData.forEach(r=>{
-    const ex=revMonths.find(m=>m.monthKey===r.monthKey);
-    if(ex){
-      revMonths=revMonths.map(m=>m.monthKey===r.monthKey?{...m,revenue:r.revenue,orders:r.orders,notes:r.notes||m.notes}:m);
-      updated++;
-    } else {
-      revMonths.push({id:Date.now()+Math.random(),monthKey:r.monthKey,revenue:r.revenue,orders:r.orders,notes:r.notes});
-      added++;
-    }
-  });
-  revImports.push({date:now,added,updated,total:revPreviewData.length});
-  saveExt(); resetRevImport(); renderRevenue(); renderRevKPIs(); renderRevImportHist(); renderRevChart();
-  alert(`✓ Import complete: ${added} new months, ${updated} updated.`);
+function processRevCSV(text, monthKey, filename) {
+  const parsed = parseCSV(text);
+  if (parsed.length < 2) { alert('CSV appears empty.'); return; }
+  const headers = parsed[0];
+  const row = parsed[1]; // single data row
+
+  // Map TCGPlayer Sales Summary columns
+  const get = (name) => {
+    const idx = headers.findIndex(h => h.toLowerCase().trim() === name.toLowerCase().trim());
+    return idx >= 0 ? parseFloat((row[idx]||'0').replace(/[^0-9.\-]/g,'')) || 0 : 0;
+  };
+  const getInt = (name) => {
+    const idx = headers.findIndex(h => h.toLowerCase().trim() === name.toLowerCase().trim());
+    return idx >= 0 ? parseInt((row[idx]||'0').replace(/[^0-9]/g,'')) || 0 : 0;
+  };
+
+  const grossSales     = get('GrossSales');
+  const productAmount  = get('ProductAmount');
+  const shippingAmount = get('ShippingAmount');
+  const orderCount     = getInt('OrderCount');
+  const totalFees      = get('TotalFees');
+  const totalRefund    = get('TotalRefundAmount');
+  const netSales       = get('NetSalesMinusFees');
+
+  if (!grossSales && !orderCount) {
+    alert('Could not read data from CSV. Make sure this is a TCGPlayer Sales Summary export.');
+    return;
+  }
+
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const [y, m] = monthKey.split('-');
+  const monthLabel = `${months[parseInt(m)-1]} ${y}`;
+
+  const existing = revMonths.find(mo => mo.monthKey === monthKey);
+  const status = existing ? 'update' : 'new';
+
+  // Show confirmation before importing
+  const msg = [
+    `Import ${monthLabel} revenue data?`,
+    '',
+    `Gross Sales:     ${fmt$(grossSales)}`,
+    `  Product:       ${fmt$(productAmount)}`,
+    `  Shipping:      ${fmt$(shippingAmount)}`,
+    `Order Count:     ${orderCount}`,
+    `Total Fees:      ${fmt$(totalFees)}`,
+    `Refunds:         ${fmt$(totalRefund)}`,
+    `Net Sales:       ${fmt$(netSales)}`,
+    '',
+    status === 'update' ? '⚠ This will overwrite the existing entry for this month.' : 'This will add a new entry.',
+  ].join('\n');
+
+  if (!confirm(msg)) {
+    document.getElementById('rev-csv-input').value = '';
+    return;
+  }
+
+  const entry = {
+    id: existing?.id || Date.now() + Math.random(),
+    monthKey,
+    grossSales, productAmount, shippingAmount,
+    orderCount, totalFees, totalRefund, netSales,
+    importedAt: todayIso(),
+  };
+
+  if (existing) {
+    revMonths = revMonths.map(mo => mo.monthKey === monthKey ? entry : mo);
+  } else {
+    revMonths.push(entry);
+  }
+
+  revImports.push({ date: todayIso(), added: status==='new'?1:0, updated: status==='update'?1:0, total: 1, month: monthLabel });
+  saveExt();
+  document.getElementById('rev-csv-input').value = '';
+  populateRevMonthSel();
+  renderRevenue();
+  renderRevKPIs();
+  renderRevImportHist();
+  renderRevChart();
+  alert(`✓ ${monthLabel} imported successfully.`);
 }
-function resetRevImport(){revCsvHeaders=[];revCsvRows=[];revCsvMapped={};revPreviewData=[];document.getElementById('rev-csv-input').value='';document.getElementById('rev-mapper-box').classList.remove('visible');document.getElementById('rev-preview-box').classList.remove('visible');}
-function clearRevData(){if(!revMonths.length) return;if(!confirm('Clear all revenue data?')) return;revMonths=[];saveExt();renderRevenue();renderRevKPIs();renderRevChart();}
-function deleteRevMonth(id){if(!confirm('Delete this month?')) return;revMonths=revMonths.filter(m=>m.id!==id);saveExt();renderRevenue();renderRevKPIs();renderRevChart();}
+
+function resetRevImport() {
+  document.getElementById('rev-csv-input').value = '';
+}
+
+function clearRevData() {
+  if (!revMonths.length) return;
+  if (!confirm('Clear all revenue data?')) return;
+  revMonths = []; saveExt();
+  renderRevenue(); renderRevKPIs(); renderRevChart();
+}
+
+function deleteRevMonth(id) {
+  if (!confirm('Delete this month?')) return;
+  revMonths = revMonths.filter(m => m.id !== id);
+  saveExt(); renderRevenue(); renderRevKPIs(); renderRevChart();
+}
+
+function exportRevLedger() {
+  if (!revMonths.length) { alert('No revenue data to export.'); return; }
+  const sorted = [...revMonths].sort((a,b) => b.monthKey.localeCompare(a.monthKey));
+  const headers = ['Month','Gross Sales','Product Amount','Shipping','Orders','Avg Order Value','Total Fees','Net Sales','Refunds'];
+  const escape = v => `"${String(v||'').replace(/"/g,'""')}"`;
+  const rows = sorted.map(m => [
+    fmtMonthKey(m.monthKey),
+    (m.grossSales||0).toFixed(2),
+    (m.productAmount||0).toFixed(2),
+    (m.shippingAmount||0).toFixed(2),
+    m.orderCount||0,
+    m.orderCount>0?((m.grossSales||0)/m.orderCount).toFixed(2):'',
+    (m.totalFees||0).toFixed(2),
+    (m.netSales||0).toFixed(2),
+    (m.totalRefund||0).toFixed(2),
+  ]);
+  const csv = [headers.map(escape).join(','), ...rows.map(r=>r.map(escape).join(','))].join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `tcg-revenue-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click(); URL.revokeObjectURL(a.href);
+}
 
 // ── REV RENDER ──
-function renderRevenue(){
-  const yearFilter=document.getElementById('rev-year-filter').value;
-  const filtered=revMonths.filter(m=>!yearFilter||m.monthKey.startsWith(yearFilter)).sort((a,b)=>b.monthKey.localeCompare(a.monthKey));
+function renderRevenue() {
+  const yearFilter = document.getElementById('rev-year-filter')?.value || '';
+  const filtered = revMonths.filter(m => !yearFilter || m.monthKey.startsWith(yearFilter))
+    .sort((a,b) => b.monthKey.localeCompare(a.monthKey));
 
-  // Month cards
-  const grid=document.getElementById('rev-month-grid');
-  if(!filtered.length){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1">No revenue data imported yet.</div>';document.getElementById('rev-ledger-body').innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:22px">No data.</td></tr>';document.getElementById('rev-ledger-count').textContent='';return;}
-  const maxRev=Math.max(...filtered.map(m=>m.revenue));
-  const best=filtered.reduce((b,m)=>m.revenue>b.revenue?m:b,filtered[0]);
-  grid.innerHTML=filtered.map(m=>`<div class="month-card ${m.monthKey===best.monthKey?'best':''}">
-    <div class="mc-month">${fmtMonthKey(m.monthKey)}</div>
-    <div class="mc-rev">${fmt$(m.revenue)}</div>
-    <div class="mc-sub">${m.orders?m.orders+' orders · '+fmt$(m.revenue/m.orders)+' avg':''}${m.notes?'<br><span style="color:var(--muted);font-size:9px">'+m.notes+'</span>':''}</div>
-  </div>`).join('');
+  const tbody = document.getElementById('rev-ledger-body');
+  if (!filtered.length) {
+    if (tbody) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:22px">No revenue data imported yet. Select a month and drop your TCGPlayer CSV above.</td></tr>';
+    return;
+  }
 
-  // Ledger
-  document.getElementById('rev-ledger-count').textContent=`${filtered.length} month${filtered.length!==1?'s':''}`;
-  document.getElementById('rev-ledger-body').innerHTML=filtered.map(m=>`<tr>
-    <td style="font-weight:500">${fmtMonthKey(m.monthKey)}</td>
-    <td style="color:var(--sale)">${fmt$(m.revenue)}</td>
-    <td style="color:var(--muted)">${m.orders||'—'}</td>
-    <td style="color:var(--muted)">${m.orders&&m.orders>0?fmt$(m.revenue/m.orders):'—'}</td>
-    <td style="color:var(--muted);font-size:10px">${m.notes||'—'}</td>
-    <td><button class="btn btn-sm btn-danger" onclick="deleteRevMonth(${m.id})">✕</button></td>
-  </tr>`).join('');
+  if (tbody) tbody.innerHTML = filtered.map(m => {
+    const aov = m.orderCount > 0 ? (m.grossSales||0) / m.orderCount : 0;
+    return `<tr>
+      <td style="font-weight:500">${fmtMonthKey(m.monthKey)}</td>
+      <td style="color:var(--sale)">${fmt$(m.grossSales||0)}</td>
+      <td style="color:var(--muted)">${fmt$(m.productAmount||0)}</td>
+      <td style="color:var(--muted)">${fmt$(m.shippingAmount||0)}</td>
+      <td style="color:var(--muted)">${m.orderCount||'—'}</td>
+      <td style="color:var(--muted)">${aov>0?fmt$(aov):'—'}</td>
+      <td style="color:var(--accent3)">${fmt$(m.totalFees||0)}</td>
+      <td style="color:var(--sale)">${fmt$(m.netSales||0)}</td>
+      <td><button class="btn btn-sm btn-danger" onclick="deleteRevMonth(${m.id})">✕</button></td>
+    </tr>`;
+  }).join('');
 
-  // Populate year filter
-  const years=[...new Set(revMonths.map(m=>m.monthKey.split('-')[0]))].sort().reverse();
-  const sel=document.getElementById('rev-year-filter');
-  const prev=sel.value;
-  sel.innerHTML='<option value="">All Years</option>'+years.map(y=>`<option value="${y}"${y===prev?' selected':''}>${y}</option>`).join('');
+  // Year filter dropdown
+  const years = [...new Set(revMonths.map(m => m.monthKey.split('-')[0]))].sort().reverse();
+  const sel = document.getElementById('rev-year-filter');
+  if (sel) { const prev=sel.value; sel.innerHTML='<option value="">All Years</option>'+years.map(y=>`<option value="${y}"${y===prev?' selected':''}>${y}</option>`).join(''); }
 }
 
-function renderRevKPIs(){
-  const total=revMonths.reduce((s,m)=>s+m.revenue,0);
-  const best=revMonths.length?revMonths.reduce((b,m)=>m.revenue>b.revenue?m:b,revMonths[0]):null;
-  const avg=revMonths.length?total/revMonths.length:0;
-  const lastImp=revImports.length?revImports[revImports.length-1]:null;
-  document.getElementById('rev-total').textContent=fmt$(total);
-  document.getElementById('rev-total-sub').textContent=`across ${revMonths.length} month${revMonths.length!==1?'s':''}`;
-  document.getElementById('rev-best-month').textContent=best?fmtMonthKey(best.monthKey):'—';
-  document.getElementById('rev-best-val').textContent=best?fmt$(best.revenue):'';
-  document.getElementById('rev-avg').textContent=fmt$(avg);
-  document.getElementById('rev-avg-sub').textContent=`${revMonths.length} month${revMonths.length!==1?'s':''} tracked`;
-  document.getElementById('rev-last-import').textContent=lastImp?fmtDate(lastImp.date):'—';
-  document.getElementById('rev-last-sub').textContent=lastImp?`${lastImp.added} added · ${lastImp.updated} updated`:'no imports yet';
+function renderRevKPIs() {
+  const total     = revMonths.reduce((s,m) => s + (m.grossSales||0), 0);
+  const totalFees = revMonths.reduce((s,m) => s + (m.totalFees||0), 0);
+  const totalNet  = revMonths.reduce((s,m) => s + (m.netSales||0), 0);
+  const totalOrders = revMonths.reduce((s,m) => s + (m.orderCount||0), 0);
+  const best = revMonths.length ? revMonths.reduce((b,m) => (m.grossSales||0)>(b.grossSales||0)?m:b, revMonths[0]) : null;
+  const avg  = revMonths.length ? total / revMonths.length : 0;
+  const aov  = totalOrders > 0 ? total / totalOrders : 0;
+  const lastImp = revImports.length ? revImports[revImports.length-1] : null;
+
+  document.getElementById('rev-total').textContent = fmt$(total);
+  document.getElementById('rev-total-sub').textContent = `across ${revMonths.length} month${revMonths.length!==1?'s':''}`;
+  document.getElementById('rev-orders').textContent = totalOrders.toLocaleString();
+  document.getElementById('rev-orders-sub').textContent = `${revMonths.length} month${revMonths.length!==1?'s':''} tracked`;
+  document.getElementById('rev-fees-total').textContent = fmt$(totalFees);
+  document.getElementById('rev-fees-sub').textContent = totalOrders>0?`${((totalFees/total)*100).toFixed(1)}% of gross`:'all time';
+  document.getElementById('rev-net-total').textContent = fmt$(totalNet);
+  document.getElementById('rev-net-sub').textContent = `${fmt$(total)} gross − ${fmt$(totalFees)} fees`;
+  document.getElementById('rev-best-month').textContent = best ? fmtMonthKey(best.monthKey) : '—';
+  document.getElementById('rev-best-val').textContent = best ? fmt$(best.grossSales||0) : '';
+  document.getElementById('rev-avg').textContent = fmt$(avg);
+  document.getElementById('rev-avg-sub').textContent = `${revMonths.length} month${revMonths.length!==1?'s':''} tracked`;
+  document.getElementById('rev-aov').textContent = aov > 0 ? fmt$(aov) : '—';
+  document.getElementById('rev-last-import').textContent = lastImp ? fmtDate(lastImp.date) : '—';
+  document.getElementById('rev-last-sub').textContent = lastImp ? `${lastImp.month||''}` : 'no imports yet';
 }
 
-function renderRevChart(){
-  const wrap=document.getElementById('rev-chart-wrap');
-  if(!revMonths.length){wrap.style.display='none';return;}
-  wrap.style.display='block';
-  const sorted=[...revMonths].sort((a,b)=>a.monthKey.localeCompare(b.monthKey)).slice(-24);
-  const maxRev=Math.max(...sorted.map(m=>m.revenue))||1;
-  const bars=document.getElementById('rev-bars');
-  bars.innerHTML=sorted.map(m=>{
-    const h=Math.max(4,Math.round((m.revenue/maxRev)*110));
+function renderRevChart() {
+  const wrap = document.getElementById('rev-chart-wrap');
+  if (!revMonths.length) { wrap.style.display='none'; return; }
+  wrap.style.display = 'block';
+  const sorted = [...revMonths].sort((a,b) => a.monthKey.localeCompare(b.monthKey)).slice(-24);
+  const maxRev = Math.max(...sorted.map(m => m.grossSales||0)) || 1;
+  const bars = document.getElementById('rev-bars');
+  bars.innerHTML = sorted.map(m => {
+    const h = Math.max(4, Math.round(((m.grossSales||0)/maxRev)*110));
     return `<div class="bar-col">
       <div class="bar-fill" style="height:${h}px;background:var(--sale)">
-        <div class="bar-tip">${fmtMonthKey(m.monthKey)}: ${fmt$(m.revenue)}</div>
+        <div class="bar-tip">${fmtMonthKey(m.monthKey)}: ${fmt$(m.grossSales||0)}</div>
       </div>
       <div class="bar-label">${fmtMonthKey(m.monthKey).replace(' ','<br>')}</div>
     </div>`;
   }).join('');
 }
 
-function renderRevImportHist(){
-  const el=document.getElementById('rev-import-hist');
-  if(!revImports.length){el.style.display='none';return;}
-  el.style.display='block';
-  const recent=[...revImports].reverse().slice(0,5);
-  el.innerHTML='<strong>Import History</strong> &nbsp;·&nbsp; '+recent.map(i=>`${fmtDate(i.date)}: <strong>${i.total}</strong> months (${i.added} new, ${i.updated} updated)`).join(' &nbsp;·&nbsp; ');
+function renderRevImportHist() {
+  const el = document.getElementById('rev-import-hist');
+  if (!revImports.length) { el.style.display='none'; return; }
+  el.style.display = 'block';
+  const recent = [...revImports].reverse().slice(0,5);
+  el.innerHTML = '<strong>Import History</strong> &nbsp;·&nbsp; ' + recent.map(i =>
+    `${fmtDate(i.date)}: <strong>${i.month||'data'}</strong> (${i.added} new, ${i.updated} updated)`
+  ).join(' &nbsp;·&nbsp; ');
 }
 
 // ── DRAG & DROP for sold and rev drop zones ──
