@@ -3304,6 +3304,13 @@ function renderSoldImportHist() {
 // REVENUE — TCGPlayer Sales Summary Import
 // ══════════════════════════════════════════════════════════════
 
+function fmtMonthKey(key) {
+  if (!key) return '—';
+  const [y, m] = key.split('-');
+  const names = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${names[parseInt(m)-1]} ${y}`;
+}
+
 // Populate month selector on page load and when tab opens
 function populateRevMonthSel() {
   const sel = document.getElementById('rev-month-sel');
