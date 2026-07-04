@@ -3470,16 +3470,17 @@ function renderRevenue() {
   }
 
   if (tbody) tbody.innerHTML = filtered.map(m => {
-    const aov = m.orderCount > 0 ? (m.grossSales||0) / m.orderCount : 0;
+    const aov = (m.orderCount||0) > 0 ? (m.grossSales||0) / m.orderCount : 0;
+    const net = m.netSales != null ? m.netSales : (m.grossSales||0) - (m.totalFees||0);
     return `<tr>
       <td style="font-weight:500">${fmtMonthKey(m.monthKey)}</td>
-      <td style="color:var(--sale)">${fmt$(m.grossSales||0)}</td>
+      <td style="color:var(--sale)">${fmt$(m.grossSales||m.revenue||0)}</td>
       <td style="color:var(--muted)">${fmt$(m.productAmount||0)}</td>
       <td style="color:var(--muted)">${fmt$(m.shippingAmount||0)}</td>
-      <td style="color:var(--muted)">${m.orderCount||'—'}</td>
+      <td style="color:var(--muted)">${m.orderCount||m.orders||'—'}</td>
       <td style="color:var(--muted)">${aov>0?fmt$(aov):'—'}</td>
       <td style="color:var(--accent3)">${fmt$(m.totalFees||0)}</td>
-      <td style="color:var(--sale)">${fmt$(m.netSales||0)}</td>
+      <td style="color:var(--sale)">${fmt$(net)}</td>
       <td><button class="btn btn-sm btn-danger" onclick="deleteRevMonth(${m.id})">✕</button></td>
     </tr>`;
   }).join('');
