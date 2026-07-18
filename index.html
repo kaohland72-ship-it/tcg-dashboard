@@ -881,7 +881,18 @@ tr:hover td{background:rgba(255,255,255,.018)}
     <!-- ── SKU META / TAGGING ── -->
     <div class="sku-meta-panel" id="sku-meta-panel">
       <div class="sku-meta-title">SKU Tagging &amp; Market Prices <span style="font-weight:400;font-size:9.5px;color:var(--muted);margin-left:8px">Tag existing SKUs with game / expansion / product type and set current market prices</span></div>
-      <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr auto;gap:8px;align-items:end;margin-bottom:8px">
+      <!-- Sealed Market Price Import from TCGPlayer CSV -->
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:16px">
+        <div style="font-size:10.5px;font-weight:700;color:var(--text);letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px">Auto-Update Market Prices from TCGPlayer</div>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:10px">Export your sealed inventory from TCGPlayer (filter by Condition: Unopened), then drop the CSV here. Market prices will be updated automatically by TCGPlayer ID — quantities are ignored.</div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <label class="btn btn-sm btn-outline" style="cursor:pointer;margin:0">
+            📥 Import Sealed Prices (CSV)
+            <input type="file" accept=".csv" id="sealed-price-csv" onchange="importSealedMarketPrices(event)" style="display:none"/>
+          </label>
+          <span id="sealed-price-import-status" style="font-size:10.5px;color:var(--muted)"></span>
+        </div>
+      </div>
         <div class="fg"><label>SKU</label><select id="meta-sku-sel"><option value="">— Select SKU —</option></select></div>
         <div class="fg"><label>Game</label>
           <select id="meta-game">
@@ -3851,6 +3862,85 @@ let skuMeta = JSON.parse(localStorage.getItem('tcg_sku_meta') || '[]');
 
 function saveSkuMeta(){ localStorage.setItem('tcg_sku_meta', JSON.stringify(skuMeta)); }
 function getSkuMeta(sku){ return skuMeta.find(m=>m.sku===sku); }
+
+// ── Import sealed market prices from TCGPlayer Unopened export ──
+function importSealedMarketPrices(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const statusEl = document.getElementById('sealed-price-import-status');
+  statusEl.textContent = 'Reading CSV…';
+  statusEl.style.color = 'var(--muted)';
+
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const parsed = parseCSV(ev.target.result);
+    if (parsed.length < 2) { statusEl.textContent = 'CSV appears empty.'; return; }
+
+    const headers = parsed[0].map(h => h.toLowerCase().trim());
+    const rows    = parsed.slice(1).filter(r => r.some(c => c.trim()));
+
+    const idIdx    = headers.indexOf('tcgplayer id');
+    const priceIdx = headers.indexOf('tcg market price');
+    const nameIdx  = headers.indexOf('product name') !== -1 ? headers.indexOf('product name') : headers.indexOf('title');
+    const condIdx  = headers.indexOf('condition');
+
+    if (idIdx < 0 || priceIdx < 0) {
+      statusEl.textContent = '✗ Could not find TCGplayer Id or TCG Market Price columns.';
+      statusEl.style.color = 'var(--accent3)';
+      return;
+    }
+
+    // Only process Unopened condition rows
+    let updated = 0, skipped = 0, unmatched = [];
+
+    rows.forEach(row => {
+      const cond = condIdx >= 0 ? (row[condIdx]||'').trim() : 'Unopened';
+      if (cond !== 'Unopened') return; // skip non-sealed rows
+
+      const tcgId = (row[idIdx]||'').trim();
+      const price = parseFloat((row[priceIdx]||'0').replace(/[^0-9.]/g,'')) || 0;
+      const name  = nameIdx >= 0 ? (row[nameIdx]||'').trim() : '';
+      if (!tcgId || !price) { skipped++; return; }
+
+      // Find matching skuMeta by tcgSku field
+      const meta = skuMeta.find(m => m.tcgSku && m.tcgSku.trim() === tcgId);
+      if (meta) {
+        const oh = lots.filter(l=>l.sku===meta.sku&&l.qtyRemaining>0).reduce((s,l)=>s+l.qtyRemaining,0);
+        const snap = { date: todayIso(), price, portfolioValue: price * oh };
+        const idx = (meta.priceHistory||[]).findIndex(p => p.date === snap.date);
+        if (!meta.priceHistory) meta.priceHistory = [];
+        if (idx >= 0) meta.priceHistory[idx] = snap; else meta.priceHistory.push(snap);
+        meta.priceHistory.sort((a,b) => a.date.localeCompare(b.date));
+        meta.marketPrice = price;
+        updated++;
+      } else {
+        unmatched.push({ tcgId, name, price });
+        skipped++;
+      }
+    });
+
+    saveSkuMeta();
+    save();
+    renderSkuMetaList();
+    renderInvCharts();
+    renderInventory();
+    renderCostVsMarket();
+    sbPushSealed();
+
+    // Report results
+    let msg = `✓ Updated ${updated} SKU${updated!==1?'s':''} with current market prices.`;
+    if (unmatched.length) msg += ` ${unmatched.length} unmatched (no TCG SKU set).`;
+    statusEl.textContent = msg;
+    statusEl.style.color = updated > 0 ? 'var(--sale)' : 'var(--accent3)';
+
+    if (unmatched.length) {
+      console.log('Unmatched sealed items — add their TCG SKU in the tagger:');
+      unmatched.forEach(u => console.log(`  ID:${u.tcgId} | ${u.name} | $${u.price}`));
+    }
+
+    document.getElementById('sealed-price-csv').value = '';
+  };
+  reader.readAsText(file);
+}
 
 function upsertSkuMeta(sku, game, expansion, productType, marketPrice, date, tcgSku){
   let m = skuMeta.find(x=>x.sku===sku);
