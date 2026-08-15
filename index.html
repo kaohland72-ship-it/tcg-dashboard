@@ -533,8 +533,8 @@ tr:hover td{background:rgba(255,255,255,.018)}
   <button class="tab-btn active" onclick="switchTab('dashboard',this)">Dashboard</button>
   <button class="tab-btn" onclick="switchTab('summary',this)">⚡ Executive Summary</button>
   <button class="tab-btn" onclick="switchTab('inventory',this)">Sealed Inventory</button>
+  <button class="tab-btn" onclick="switchTab('locations',this)">📦 Locations</button>
   <button class="tab-btn" onclick="switchTab('singles',this)">Singles / TCGPlayer</button>
-  <button class="tab-btn" onclick="switchTab('sold',this)">Singles Sold</button>
   <button class="tab-btn" onclick="switchTab('revenue',this)">TCG Revenue</button>
 </div>
 
@@ -641,12 +641,22 @@ tr:hover td{background:rgba(255,255,255,.018)}
         <div id="sum-aging" style="font-size:11px"></div>
       </div>
 
-      <!-- Top Performing SKUs -->
+      <!-- Top Performing SKUs by Margin -->
       <div class="sw" style="padding:18px">
-        <div class="sh" style="margin-bottom:14px"><span class="st">Top SKUs by Net Profit</span><span id="sum-top-period" style="font-size:10px;color:var(--muted)"></span></div>
+        <div class="sh" style="margin-bottom:14px">
+          <span class="st">Top SKUs by Net Margin</span>
+          <span id="sum-top-period" style="font-size:10px;color:var(--muted)"></span>
+          <select id="sum-margin-filter" onchange="renderSummary()" style="padding:3px 8px;font-size:10.5px;max-width:130px">
+            <option value="0">All margins</option>
+            <option value="20">≥ 20% margin</option>
+            <option value="30">≥ 30% margin</option>
+            <option value="40">≥ 40% margin</option>
+            <option value="50">≥ 50% margin</option>
+          </select>
+        </div>
         <div class="tw" style="max-height:280px;overflow-y:auto">
           <table>
-            <thead><tr><th>SKU</th><th>Units</th><th>Net Rev</th><th>COGS</th><th>Profit</th><th>Margin</th></tr></thead>
+            <thead><tr><th>SKU</th><th>Units</th><th>Net Rev</th><th>COGS</th><th>Net Profit</th><th>Net Margin</th></tr></thead>
             <tbody id="sum-top-body"></tbody>
           </table>
         </div>
@@ -1222,77 +1232,84 @@ tr:hover td{background:rgba(255,255,255,.018)}
 
   </div>
 </div>
-<div id="tab-sold" class="tab-panel">
+<!-- ══════════════ LOCATION TRACKER ══════════════ -->
+<div id="tab-locations" class="tab-panel">
   <div class="tab-panel-inner">
-    <div class="cards c4g" style="margin-bottom:22px">
-      <div class="card hl-sold"><div class="lbl">Total Units Sold</div><div class="val" id="sold-total-units" style="color:var(--accent4)">0</div><div class="sub" id="sold-total-sub">across all imports</div></div>
-      <div class="card"><div class="lbl">Unique Cards Sold</div><div class="val" id="sold-unique" style="color:var(--text)">0</div><div class="sub">distinct card names</div></div>
-      <div class="card"><div class="lbl">Top Seller</div><div class="val" id="sold-top-name" style="font-size:12px;line-height:1.3">—</div><div class="sub" id="sold-top-qty"></div></div>
-      <div class="card hl"><div class="lbl">Last Import</div><div class="val" id="sold-last-import" style="font-size:13px">—</div><div class="sub" id="sold-last-sub">no imports yet</div></div>
+
+    <!-- Location KPI cards -->
+    <div class="cards c4g" style="margin-bottom:20px">
+      <div class="card hl"><div class="lbl">Total Units On Hand</div><div class="val" id="loc-total-units">0</div><div class="sub">across all locations</div></div>
+      <div class="card"><div class="lbl">🏠 Home</div><div class="val" id="loc-home-units" style="color:var(--purchase)">0</div><div class="sub" id="loc-home-cost">$0.00 cost basis</div></div>
+      <div class="card"><div class="lbl">🏭 Warehouse</div><div class="val" id="loc-wh-units" style="color:var(--tcg)">0</div><div class="sub" id="loc-wh-cost">$0.00 cost basis</div></div>
+      <div class="card"><div class="lbl">Unassigned</div><div class="val" id="loc-unassigned-units" style="color:var(--muted)">0</div><div class="sub" id="loc-unassigned-cost">not yet assigned</div></div>
     </div>
 
-    <div class="sh" style="margin-bottom:12px">
-      <span class="st">Import Sold Quantities</span>
-      <span style="font-size:10.5px;color:var(--muted)">Quantities are cumulative — each import adds to running totals</span>
-    </div>
-    <div class="drop-zone" id="sold-drop-zone" style="margin-bottom:16px">
-      <input type="file" accept=".csv" id="sold-csv-input" onchange="handleSoldFileSelect(event)"/>
-      <div class="dz-icon">📊</div>
-      <div class="dz-title">Drop your TCGPlayer Sales Qty CSV here</div>
-      <div class="dz-sub">or click to browse · quantities are added to existing running totals per card<br/>Map your columns after upload — Card Name and Quantity Sold are required</div>
-      <div class="dz-badge">CSV · QTY ONLY</div>
-    </div>
-
-    <div class="mapper-box" id="sold-mapper-box">
-      <div class="mapper-title">Map CSV Columns → Fields</div>
-      <div class="hint" style="margin-bottom:14px"><strong style="color:var(--text)">Card Name</strong> and <strong style="color:var(--text)">Quantity Sold</strong> are required.</div>
-      <div class="mapper-grid" id="sold-mapper-grid"></div>
-      <div class="mapper-actions">
-        <button class="btn btn-tcg" onclick="previewSoldImport()">Preview →</button>
-        <button class="btn btn-outline btn-sm" onclick="resetSoldImport()">Cancel</button>
-        <div class="mapper-summary" id="sold-mapper-summary"></div>
-      </div>
-    </div>
-
-    <div class="preview-box" id="sold-preview-box">
-      <div class="preview-header">
-        <span class="preview-title" id="sold-preview-title">Sold Import Preview</span>
-        <div style="display:flex;gap:8px">
-          <button class="btn btn-tcg btn-sm" onclick="confirmSoldImport()">✓ Import &amp; Add Quantities</button>
-          <button class="btn btn-outline btn-sm" onclick="backToSoldMapper()">← Remap</button>
-          <button class="btn btn-danger btn-sm" onclick="resetSoldImport()">Cancel</button>
+    <!-- Transfer form -->
+    <div class="sw" style="padding:18px;margin-bottom:20px">
+      <div class="sh" style="margin-bottom:14px"><span class="st">Transfer Inventory</span></div>
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:10px;align-items:end">
+        <div class="fg"><label>SKU</label>
+          <select id="loc-sku-sel"><option value="">— Select SKU —</option></select>
         </div>
+        <div class="fg"><label>Qty to Transfer</label>
+          <input type="number" id="loc-qty" value="1" min="0.01" step="any"/>
+        </div>
+        <div class="fg"><label>From</label>
+          <select id="loc-from">
+            <option value="Home">🏠 Home</option>
+            <option value="Warehouse">🏭 Warehouse</option>
+            <option value="Unassigned">Unassigned</option>
+          </select>
+        </div>
+        <div class="fg"><label>To</label>
+          <select id="loc-to">
+            <option value="Warehouse">🏭 Warehouse</option>
+            <option value="Home">🏠 Home</option>
+          </select>
+        </div>
+        <button class="btn" onclick="transferInventory()" style="height:34px">Transfer</button>
       </div>
-      <div class="preview-scroll">
-        <table><thead><tr><th>Card Name</th><th>Set</th><th>Condition</th><th>Qty This Import</th><th>Current Total</th><th>New Total</th></tr></thead>
-        <tbody id="sold-preview-body"></tbody></table>
-      </div>
+      <div id="loc-transfer-note" style="font-size:10px;color:var(--muted);margin-top:8px"></div>
     </div>
 
-    <div id="sold-import-hist" class="import-hist" style="display:none"></div>
-
-    <div style="display:grid;grid-template-columns:320px 1fr;gap:18px;margin-top:4px">
-      <div>
-        <div class="sh"><span class="st">Top Sellers</span></div>
-        <div class="tw sc" style="max-height:520px">
-          <table><thead><tr><th>#</th><th>Card Name</th><th>Set</th><th>Units Sold</th></tr></thead>
-          <tbody id="sold-top-body"></tbody></table>
-        </div>
-      </div>
-      <div>
-        <div class="sh">
-          <span class="st">All Sold Cards <span id="sold-all-badge" style="font-family:'DM Mono',monospace;font-weight:400;font-size:10.5px;color:var(--muted)"></span></span>
-          <div style="display:flex;gap:8px;align-items:center">
-            <input type="text" id="sold-search" placeholder="Search card or set..." style="max-width:180px;padding:4px 9px;font-size:11px" oninput="renderSold()"/>
-            <button class="btn btn-danger btn-sm" onclick="clearSoldData()">Clear All</button>
-          </div>
-        </div>
-        <div class="tw sc" style="max-height:520px">
-          <table><thead><tr><th>Card Name</th><th>Set</th><th>Condition</th><th>Units Sold</th><th>% of Total</th></tr></thead>
-          <tbody id="sold-all-body"></tbody></table>
-        </div>
+    <!-- Location inventory table -->
+    <div class="sh" style="margin-bottom:10px">
+      <span class="st">Inventory by Location</span>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <select id="loc-filter" onchange="renderLocations()" style="padding:4px 9px;font-size:11px">
+          <option value="">All Locations</option>
+          <option value="Home">🏠 Home</option>
+          <option value="Warehouse">🏭 Warehouse</option>
+          <option value="Unassigned">Unassigned</option>
+        </select>
+        <select id="loc-game-filter" onchange="renderLocations()" style="padding:4px 9px;font-size:11px">
+          <option value="">All Games</option>
+          <option value="Pokemon">Pokemon</option>
+          <option value="Magic">Magic: The Gathering</option>
+          <option value="Lorcana">Lorcana</option>
+          <option value="Yu-Gi-Oh">Yu-Gi-Oh</option>
+          <option value="One Piece">One Piece</option>
+        </select>
+        <button class="btn btn-sm btn-outline" onclick="exportLocations()">⬇ Export CSV</button>
+        <button class="btn btn-sm btn-outline" onclick="assignAllUnassigned()">Assign All to Home</button>
       </div>
     </div>
+    <div class="tw sc" style="max-height:500px">
+      <table><thead><tr><th>SKU</th><th>Game</th><th>On Hand</th><th>🏠 Home</th><th>🏭 Warehouse</th><th>Unit Cost</th><th>Cost Basis</th><th>Location</th><th></th></tr></thead>
+      <tbody id="loc-table-body"></tbody></table>
+    </div>
+
+    <!-- Transfer history -->
+    <div class="sh" style="margin-top:20px;margin-bottom:10px">
+      <span class="st">Transfer History</span>
+      <span id="loc-history-count" style="font-size:10.5px;color:var(--muted)"></span>
+      <button class="btn btn-sm btn-danger" onclick="clearTransferHistory()">Clear History</button>
+    </div>
+    <div class="tw sc" style="max-height:240px">
+      <table><thead><tr><th>Date</th><th>SKU</th><th>Qty</th><th>From</th><th>To</th></tr></thead>
+      <tbody id="loc-history-body"></tbody></table>
+    </div>
+
   </div>
 </div>
 
@@ -1467,6 +1484,7 @@ function switchTab(id, btn) {
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+id).classList.add('active');
   btn.classList.add('active');
+  if (id==='locations') { renderLocations(); }
   if (id==='summary')  { renderSummary(); }
   if (id==='inventory') { populateInvDropdowns(); renderInventory(); renderLots(); renderReceiptLedger(); renderSalesLedger(); renderBreakLedger(); renderAuditLog(); renderInvCharts(); }
   if (id==='singles')   { renderSingles(); renderSinglesKPIs(); renderImportHistory(); renderSinglesCharts(); renderSnapUI(); }
@@ -1546,8 +1564,9 @@ function computeFIFO(sku, qtyNeeded){
 }
 function applyFIFO(breakdown){breakdown.forEach(b=>{const lot=lots.find(l=>String(l.id)===String(b.lotId));if(lot) lot.qtyRemaining=Math.max(0,lot.qtyRemaining-b.qtyUsed);});}
 function buildFIFOHtml(breakdown){
-  return breakdown.map(b=>`<div class="fifo-row"><span>Lot ${fmtDate(b.lotDate)} — ${b.qtyUsed} unit(s) @ ${fmt$(b.unitCost)}</span><span style="color:var(--accent3)">${fmt$(b.subtotal)}</span></div>`).join('')
-    +`<div class="fifo-row tot"><span>Total</span><span style="color:var(--accent3)">${fmt$(breakdown.reduce((s,b)=>s+b.subtotal,0))}</span></div>`;
+  const rows=breakdown.map(b=>'<div class="fifo-row"><span>Lot '+fmtDate(b.lotDate)+' — '+b.qtyUsed+' unit(s) @ '+fmt$(b.unitCost)+'</span><span style="color:var(--accent3)">'+fmt$(b.subtotal)+'</span></div>').join('');
+  const total='<div class="fifo-row tot"><span>Total</span><span style="color:var(--accent3)">'+fmt$(breakdown.reduce((s,b)=>s+b.subtotal,0))+'</span></div>';
+  return rows+total;
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -3144,6 +3163,26 @@ function renderChecklist(){
 // soldCards: { id, name, set, condition, qtySold }
 let soldCards   = JSON.parse(localStorage.getItem('tcg_sold')        || '[]');
 let soldImports = JSON.parse(localStorage.getItem('tcg_sold_imports')|| '[]');
+// Location tracking — stores {sku, location, qty} per assignment
+let locAssignments  = JSON.parse(localStorage.getItem('tcg_locations')     || '[]');
+let locTransferHist = JSON.parse(localStorage.getItem('tcg_loc_transfers') || '[]');
+
+function saveLocations() {
+  try {
+    localStorage.setItem('tcg_locations',      JSON.stringify(locAssignments));
+    localStorage.setItem('tcg_loc_transfers',  JSON.stringify(locTransferHist));
+  } catch(e) {}
+}
+
+// Get location assignment for a SKU (defaults to Unassigned)
+function getLocAssignment(sku) {
+  return locAssignments.find(a => a.sku === sku) || { sku, home:0, warehouse:0 };
+}
+
+// Get total on-hand for a SKU across all lots
+function getSkuOnHand(sku) {
+  return lots.filter(l=>l.sku===sku&&l.qtyRemaining>0).reduce((s,l)=>s+l.qtyRemaining,0);
+}
 // revMonths: { id, monthKey (YYYY-MM), label, revenue, orders, notes }
 let revMonths   = JSON.parse(localStorage.getItem('tcg_rev_months')  || '[]');
 let revImports  = JSON.parse(localStorage.getItem('tcg_rev_imports') || '[]');
@@ -3174,10 +3213,212 @@ const REV_ALIASES = {
 };
 
 // ── SOLD FILE SELECT ──
-function handleSoldFileSelect(e) {
-  const file = e.target.files[0]; if(!file) return;
-  const r = new FileReader(); r.onload = ev => processSoldCSV(ev.target.result, file.name); r.readAsText(file);
+// ══════════════════════════════════════════════════════════════
+// LOCATION TRACKER
+// ══════════════════════════════════════════════════════════════
+
+function renderLocations() {
+  const locFilter  = document.getElementById('loc-filter')?.value  || '';
+  const gameFilter = document.getElementById('loc-game-filter')?.value || '';
+  const fmtQty = q => Number.isInteger(q) ? q : parseFloat(q).toFixed(2);
+
+  // Build per-SKU summary
+  const allSkus = [...new Set(lots.map(l=>l.sku))];
+  const skuRows = allSkus.map(sku => {
+    const oh = getSkuOnHand(sku);
+    if (oh <= 0) return null;
+    const meta = skuMeta.find(m=>m.sku===sku);
+    const game = meta?.game || '—';
+    const assign = getLocAssignment(sku);
+    const home = assign.home || 0;
+    const wh   = assign.warehouse || 0;
+    const unassigned = Math.max(0, parseFloat((oh - home - wh).toFixed(4)));
+    const avgCost = oh > 0 ? lots.filter(l=>l.sku===sku&&l.qtyRemaining>0).reduce((s,l)=>s+l.qtyRemaining*l.unitCost,0)/oh : 0;
+    const costBasis = oh * avgCost;
+    const location = home>0&&wh>0?'Both':home>0?'Home':wh>0?'Warehouse':unassigned>0?'Unassigned':'—';
+    return { sku, game, oh, home, wh, unassigned, avgCost, costBasis, location };
+  }).filter(Boolean);
+
+  // Apply filters
+  let filtered = skuRows;
+  if (locFilter === 'Home')        filtered = filtered.filter(r => r.home > 0);
+  else if (locFilter === 'Warehouse') filtered = filtered.filter(r => r.wh > 0);
+  else if (locFilter === 'Unassigned') filtered = filtered.filter(r => r.unassigned > 0);
+  if (gameFilter) filtered = filtered.filter(r => r.game === gameFilter);
+  filtered.sort((a,b) => a.sku.localeCompare(b.sku));
+
+  // KPI cards
+  const totalOH  = skuRows.reduce((s,r)=>s+r.oh,0);
+  const homeOH   = skuRows.reduce((s,r)=>s+r.home,0);
+  const whOH     = skuRows.reduce((s,r)=>s+r.wh,0);
+  const unassOH  = skuRows.reduce((s,r)=>s+r.unassigned,0);
+  const homeCost = skuRows.reduce((s,r)=>s+r.home*r.avgCost,0);
+  const whCost   = skuRows.reduce((s,r)=>s+r.wh*r.avgCost,0);
+  const unassCost= skuRows.reduce((s,r)=>s+r.unassigned*r.avgCost,0);
+
+  document.getElementById('loc-total-units').textContent   = fmtQty(totalOH);
+  document.getElementById('loc-home-units').textContent    = fmtQty(homeOH);
+  document.getElementById('loc-home-cost').textContent     = fmt$(homeCost) + ' cost basis';
+  document.getElementById('loc-wh-units').textContent      = fmtQty(whOH);
+  document.getElementById('loc-wh-cost').textContent       = fmt$(whCost) + ' cost basis';
+  document.getElementById('loc-unassigned-units').textContent = fmtQty(unassOH);
+  document.getElementById('loc-unassigned-cost').textContent  = unassOH > 0 ? fmt$(unassCost) + ' not assigned' : 'all assigned';
+
+  // Populate SKU selector for transfer
+  const sel = document.getElementById('loc-sku-sel');
+  if (sel) {
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">— Select SKU —</option>' +
+      allSkus.filter(sku => getSkuOnHand(sku) > 0).sort().map(sku =>
+        `<option value="${sku}"${sku===prev?' selected':''}>${sku}</option>`
+      ).join('');
+  }
+
+  // Inventory table
+  const tbody = document.getElementById('loc-table-body');
+  tbody.innerHTML = filtered.length ? filtered.map(r => `<tr>
+    <td style="font-weight:500;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.sku}">${r.sku}</td>
+    <td style="color:var(--muted)">${r.game}</td>
+    <td>${fmtQty(r.oh)}</td>
+    <td style="color:var(--purchase)">${r.home>0?fmtQty(r.home):'—'}</td>
+    <td style="color:var(--tcg)">${r.wh>0?fmtQty(r.wh):'—'}</td>
+    <td style="color:var(--muted)">${fmt$(r.avgCost)}</td>
+    <td style="color:var(--purchase)">${fmt$(r.costBasis)}</td>
+    <td><span style="font-size:10px;padding:2px 7px;border-radius:3px;background:${r.location==='Home'?'rgba(78,205,196,.15)':r.location==='Warehouse'?'rgba(59,130,246,.15)':r.location==='Both'?'rgba(232,197,71,.15)':'rgba(107,114,128,.15)'};color:${r.location==='Home'?'var(--purchase)':r.location==='Warehouse'?'var(--tcg)':r.location==='Both'?'var(--accent)':'var(--muted)'}">${r.location}</span></td>
+    <td><button class="btn btn-sm btn-outline" onclick="quickAssign('${r.sku.replace(/'/g,"\\'")}')">Assign</button></td>
+  </tr>`).join('') : '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:22px">No inventory matches filter.</td></tr>';
+
+  // Transfer history
+  renderTransferHistory();
 }
+
+function renderTransferHistory() {
+  const tbody = document.getElementById('loc-history-body');
+  const countEl = document.getElementById('loc-history-count');
+  const sorted = [...locTransferHist].reverse().slice(0,50);
+  if (countEl) countEl.textContent = `${locTransferHist.length} transfer${locTransferHist.length!==1?'s':''}`;
+  tbody.innerHTML = sorted.length ? sorted.map(t => `<tr>
+    <td style="color:var(--muted)">${fmtDate(t.date)}</td>
+    <td style="font-weight:500">${t.sku}</td>
+    <td>${t.qty}</td>
+    <td style="color:var(--muted)">${t.from}</td>
+    <td style="color:var(--sale)">${t.to}</td>
+  </tr>`).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:16px">No transfers yet.</td></tr>';
+}
+
+function transferInventory() {
+  const sku  = document.getElementById('loc-sku-sel').value;
+  const qty  = parseFloat(document.getElementById('loc-qty').value) || 0;
+  const from = document.getElementById('loc-from').value;
+  const to   = document.getElementById('loc-to').value;
+  const note = document.getElementById('loc-transfer-note');
+
+  if (!sku)        { note.textContent = '⚠ Select a SKU.'; note.style.color='var(--accent3)'; return; }
+  if (!qty||qty<=0){ note.textContent = '⚠ Enter a valid quantity.'; note.style.color='var(--accent3)'; return; }
+  if (from === to) { note.textContent = '⚠ From and To locations must be different.'; note.style.color='var(--accent3)'; return; }
+
+  const oh = getSkuOnHand(sku);
+  let assign = getLocAssignment(sku);
+  if (!locAssignments.find(a=>a.sku===sku)) locAssignments.push(assign);
+
+  const fmtQty = q => Number.isInteger(q) ? q : parseFloat(q).toFixed(2);
+  const fromKey = from.toLowerCase();
+  const toKey   = to.toLowerCase() === 'home' ? 'home' : 'warehouse';
+  const available = fromKey === 'unassigned'
+    ? Math.max(0, parseFloat((oh - (assign.home||0) - (assign.warehouse||0)).toFixed(4)))
+    : (assign[fromKey] || 0);
+
+  if (qty > available + 0.001) {
+    note.textContent = `⚠ Only ${fmtQty(available)} available at ${from}.`;
+    note.style.color = 'var(--accent3)'; return;
+  }
+
+  // Apply transfer
+  if (fromKey !== 'unassigned') assign[fromKey] = parseFloat(Math.max(0, (assign[fromKey]||0) - qty).toFixed(4));
+  assign[toKey] = parseFloat(((assign[toKey]||0) + qty).toFixed(4));
+
+  // Record in history
+  locTransferHist.push({ date: todayIso(), sku, qty: fmtQty(qty), from, to });
+  saveLocations();
+  note.textContent = `✓ Transferred ${fmtQty(qty)} × ${sku} from ${from} → ${to}.`;
+  note.style.color = 'var(--sale)';
+  renderLocations();
+}
+
+function quickAssign(sku) {
+  const oh = getSkuOnHand(sku);
+  const assign = getLocAssignment(sku);
+  const unassigned = Math.max(0, parseFloat((oh - (assign.home||0) - (assign.warehouse||0)).toFixed(4)));
+  const fmtQty = q => Number.isInteger(q) ? q : parseFloat(q).toFixed(2);
+
+  const loc = prompt(
+    `Quick assign: ${sku}\nOn hand: ${fmtQty(oh)} | Home: ${fmtQty(assign.home||0)} | Warehouse: ${fmtQty(assign.warehouse||0)} | Unassigned: ${fmtQty(unassigned)}\n\nEnter location (Home or Warehouse) and qty separated by comma.\nExample: Home,2 or Warehouse,1.5`
+  );
+  if (!loc) return;
+  const [location, qtyStr] = loc.split(',').map(s=>s.trim());
+  const qty = parseFloat(qtyStr) || 0;
+  if (!qty || !['Home','Warehouse'].includes(location)) { alert('Invalid input. Use: Home,2 or Warehouse,1.5'); return; }
+  if (!locAssignments.find(a=>a.sku===sku)) locAssignments.push(assign);
+  const key = location.toLowerCase() === 'home' ? 'home' : 'warehouse';
+  assign[key] = parseFloat(((assign[key]||0) + qty).toFixed(4));
+  locTransferHist.push({ date: todayIso(), sku, qty, from: 'Unassigned', to: location });
+  saveLocations();
+  renderLocations();
+}
+
+function assignAllUnassigned() {
+  const loc = prompt('Assign all unassigned inventory to which location?\nEnter: Home or Warehouse');
+  if (!loc || !['Home','Warehouse'].includes(loc)) return;
+  const key = loc.toLowerCase() === 'home' ? 'home' : 'warehouse';
+  const allSkus = [...new Set(lots.map(l=>l.sku))];
+  let count = 0;
+  allSkus.forEach(sku => {
+    const oh = getSkuOnHand(sku); if (!oh) return;
+    let assign = getLocAssignment(sku);
+    if (!locAssignments.find(a=>a.sku===sku)) locAssignments.push(assign);
+    const unassigned = Math.max(0, parseFloat((oh - (assign.home||0) - (assign.warehouse||0)).toFixed(4)));
+    if (unassigned > 0) {
+      assign[key] = parseFloat(((assign[key]||0) + unassigned).toFixed(4));
+      locTransferHist.push({ date: todayIso(), sku, qty: unassigned, from: 'Unassigned', to: loc });
+      count++;
+    }
+  });
+  saveLocations();
+  renderLocations();
+  alert(`✓ Assigned ${count} SKU${count!==1?'s':''} to ${loc}.`);
+}
+
+function clearTransferHistory() {
+  if (!locTransferHist.length) return;
+  if (!confirm('Clear all transfer history?')) return;
+  locTransferHist = []; saveLocations(); renderTransferHistory();
+  document.getElementById('loc-history-count').textContent = '0 transfers';
+}
+
+function exportLocations() {
+  const fmtQty = q => Number.isInteger(q) ? q : parseFloat(q).toFixed(2);
+  const allSkus = [...new Set(lots.map(l=>l.sku))].filter(sku => getSkuOnHand(sku) > 0).sort();
+  const headers = ['SKU','Game','On Hand','Home','Warehouse','Unassigned','Avg Cost','Cost Basis'];
+  const escape = v => `"${String(v||'').replace(/"/g,'""')}"`;
+  const rows = allSkus.map(sku => {
+    const oh = getSkuOnHand(sku);
+    const meta = skuMeta.find(m=>m.sku===sku);
+    const assign = getLocAssignment(sku);
+    const home = assign.home||0, wh = assign.warehouse||0;
+    const unass = Math.max(0, parseFloat((oh-home-wh).toFixed(4)));
+    const avgCost = lots.filter(l=>l.sku===sku&&l.qtyRemaining>0).reduce((s,l)=>s+l.qtyRemaining*l.unitCost,0)/oh;
+    return [sku, meta?.game||'', fmtQty(oh), fmtQty(home), fmtQty(wh), fmtQty(unass), avgCost.toFixed(2), (oh*avgCost).toFixed(2)];
+  });
+  const csv = [headers.map(escape).join(','), ...rows.map(r=>r.map(escape).join(','))].join('\n');
+  const blob = new Blob([csv],{type:'text/csv'});
+  const a = document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=`inventory-locations-${todayIso()}.csv`; a.click(); URL.revokeObjectURL(a.href);
+}
+
+// ══════════════════════════════════════════════════════════════
+// SINGLES SOLD (legacy — kept for data compatibility)
+// ══════════════════════════════════════════════════════════════
+function handleSoldFileSelect(e) {}
 function processSoldCSV(text, filename) {
   const parsed = parseCSV(text);
   if(parsed.length < 2) { alert('CSV appears empty.'); return; }
@@ -4752,30 +4993,38 @@ function renderSummary() {
     </div>`;
   }).join('');
 
-  // ── Top performing SKUs ──
+  const minMargin = parseFloat(document.getElementById('sum-margin-filter')?.value || '0');
   const skuPerfMap = {};
   pSales.forEach(s => {
     if (!skuPerfMap[s.sku]) skuPerfMap[s.sku] = { units:0, netRev:0, cogs:0 };
     const net = s.netProceeds != null ? s.netProceeds : s.revenue*(1-TCG_FEE_RATE);
-    skuPerfMap[s.sku].units += s.qty;
+    skuPerfMap[s.sku].units  += s.qty;
     skuPerfMap[s.sku].netRev += net;
     skuPerfMap[s.sku].cogs   += s.cogs;
   });
   const topSkus = Object.entries(skuPerfMap)
-    .map(([sku,v]) => ({ sku, ...v, profit: v.netRev-v.cogs, margin: v.netRev>0?((v.netRev-v.cogs)/v.netRev*100).toFixed(1):'0.0' }))
-    .sort((a,b) => b.profit - a.profit)
-    .slice(0, 10);
+    .map(([sku,v]) => ({
+      sku, ...v,
+      profit: v.netRev - v.cogs,
+      margin: v.netRev > 0 ? ((v.netRev - v.cogs)/v.netRev*100) : 0
+    }))
+    .filter(s => s.margin >= minMargin)
+    .sort((a,b) => b.margin - a.margin)
+    .slice(0, 15);
   document.getElementById('sum-top-period').textContent = selVal==='ytd'?` — YTD ${curYear}`:` — ${selVal}`;
   document.getElementById('sum-top-body').innerHTML = topSkus.length
-    ? topSkus.map(s => `<tr>
-        <td style="font-weight:500;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${s.sku}">${s.sku}</td>
-        <td>${s.units}</td>
-        <td class="gp">${fmt$(s.netRev)}</td>
-        <td class="gn">${fmt$(s.cogs)}</td>
-        <td class="${s.profit>=0?'gp':'gn'}">${fmt$(s.profit)}</td>
-        <td style="color:var(--muted)">${s.margin}%</td>
-      </tr>`).join('')
-    : '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:16px">No sales in this period.</td></tr>';
+    ? topSkus.map(s => {
+        const marginColor = s.margin >= 40 ? 'var(--sale)' : s.margin >= 20 ? 'var(--accent)' : 'var(--accent3)';
+        return `<tr>
+          <td style="font-weight:500;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${s.sku}">${s.sku}</td>
+          <td>${s.units}</td>
+          <td class="gp">${fmt$(s.netRev)}</td>
+          <td class="gn">${fmt$(s.cogs)}</td>
+          <td class="${s.profit>=0?'gp':'gn'}">${fmt$(s.profit)}</td>
+          <td style="color:${marginColor};font-weight:700">${s.margin.toFixed(1)}%</td>
+        </tr>`;
+      }).join('')
+    : `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:16px">${minMargin>0?`No SKUs with ≥ ${minMargin}% net margin in this period.`:'No sales in this period.'}</td></tr>`;
 
   // ── Listing Priorities ──
   const listingRows = onHandSkus.map(sku => {
