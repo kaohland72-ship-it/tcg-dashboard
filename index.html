@@ -1609,11 +1609,50 @@ function updateSellPreview(){
   const{cogs,canFulfill,available}=computeFIFO(sku,qty);
   el.innerHTML=!canFulfill?`<span style="color:var(--accent3)">⚠ Only ${available} unit(s) in stock.</span>`:`Est. COGS: <span style="color:var(--accent3)">${fmt$(cogs)}</span> &nbsp;·&nbsp; Avg: <span style="color:var(--muted)">${fmt$(cogs/qty)}/unit</span>`;
 }
+// ── Location deduction — Home first, then Warehouse ──
+function deductFromLocation(sku, qty) {
+  const fmtQty = q => Number.isInteger(q) ? q : parseFloat(q).toFixed(2);
+  let assign = getLocAssignment(sku);
+  if (!locAssignments.find(a => a.sku === sku)) locAssignments.push(assign);
+  let remaining = qty;
+  // Deduct from Home first
+  if (assign.home > 0) {
+    const deduct = Math.min(assign.home, remaining);
+    assign.home = parseFloat(Math.max(0, assign.home - deduct).toFixed(4));
+    remaining   = parseFloat((remaining - deduct).toFixed(4));
+  }
+  // Then Warehouse
+  if (remaining > 0 && assign.warehouse > 0) {
+    const deduct = Math.min(assign.warehouse, remaining);
+    assign.warehouse = parseFloat(Math.max(0, assign.warehouse - deduct).toFixed(4));
+    remaining        = parseFloat((remaining - deduct).toFixed(4));
+  }
+  saveLocations();
+  return remaining; // returns any qty that couldn't be deducted (unassigned)
+}
+
+// ── Check home stock and warn if zero ──
+function checkHomeStock(sku, qty) {
+  const assign = getLocAssignment(sku);
+  const homeQty = assign.home || 0;
+  const fmtQty = q => Number.isInteger(q) ? q : parseFloat(q).toFixed(2);
+  if (homeQty <= 0) {
+    return `⚠ Location Warning: No stock assigned to Home for "${sku}".\n\nThis may mean a transfer from Warehouse → Home was not logged.\n\nYou can proceed, but your location balances may be out of sync.\n\nContinue anyway?`;
+  }
+  if (homeQty < qty) {
+    return `⚠ Location Warning: Home only has ${fmtQty(homeQty)} unit(s) of "${sku}" but you are selling/breaking ${fmtQty(qty)}.\n\nThe remainder (${fmtQty(qty-homeQty)}) will be deducted from Warehouse.\n\nThis may mean a transfer was not logged. Continue?`;
+  }
+  return null; // no warning
+}
+
 function openSaleModal(){
   const sku=document.getElementById('sell-sku').value,qty=parseFloat(document.getElementById('sell-qty').value),price=parseFloat(document.getElementById('sell-price').value),date=document.getElementById('sell-date').value||todayIso();
   if(!sku){alert('Select a SKU.');return;} if(!qty||qty<=0){alert('Enter a valid qty.');return;} if(isNaN(price)||price<=0){alert('Enter a valid sale price.');return;}
   const{cogs,breakdown,canFulfill,available}=computeFIFO(sku,qty);
   if(!canFulfill){alert(`Only ${available} unit(s) in stock for "${sku}".`);return;}
+  // Check home stock and warn if needed
+  const warning = checkHomeStock(sku, qty);
+  if (warning && !confirm(warning)) return;
   const revenue=qty*price;
   const fees=parseFloat((revenue*TCG_FEE_RATE).toFixed(2));
   const netProceeds=parseFloat((revenue-fees).toFixed(2));
@@ -1634,6 +1673,7 @@ function confirmSale(){
   if(!pendingSale) return;
   const{sku,qty,price,date,cogs,revenue,fees,netProceeds,netProfit,breakdown}=pendingSale;
   applyFIFO(breakdown);
+  deductFromLocation(sku, qty);
   sales.push({id:Date.now(),date,sku,qty,salePrice:price,revenue,fees:fees||0,netProceeds:netProceeds||revenue,cogs,breakdown});
   save(); closeModal('sale-modal');
   document.getElementById('sell-qty').value='1'; document.getElementById('sell-price').value=''; document.getElementById('sell-date').value=todayIso();
@@ -1656,6 +1696,9 @@ function openBreakModal(){
   if(!sku){alert('Select a sealed SKU.');return;} if(!qty||qty<=0){alert('Enter a valid quantity.');return;}
   const{cogs,breakdown,canFulfill,available}=computeFIFO(sku,qty);
   if(!canFulfill){alert(`Only ${available} unit(s) in stock for "${sku}".`);return;}
+  // Check home stock and warn if needed
+  const warning = checkHomeStock(sku, qty);
+  if (warning && !confirm(warning)) return;
   pendingBreak={sku,qty,notes,date,cogs,breakdown,costPerUnit:cogs/qty};
   document.getElementById('m-break-sub').textContent=`Breaking ${qty}× "${sku}" on ${fmtDate(date)}${notes?' — '+notes:''}`;
   document.getElementById('m-break-fifo').innerHTML=buildFIFOHtml(breakdown);
@@ -1667,6 +1710,7 @@ function confirmBreak(){
   if(!pendingBreak) return;
   const{sku,qty,notes,date,cogs,breakdown,costPerUnit}=pendingBreak;
   applyFIFO(breakdown);
+  deductFromLocation(sku, qty);
   breaks.push({id:Date.now(),date,sku,qty,cogs,costPerUnit,breakdown,notes});
   save(); closeModal('break-modal');
   document.getElementById('break-qty').value='1'; document.getElementById('break-notes').value=''; document.getElementById('break-date').value=todayIso();
@@ -2000,7 +2044,11 @@ function deleteSale(id) {
     const lot = lots.find(l => String(l.id) === String(b.lotId));
     if (lot) lot.qtyRemaining = Math.min(lot.qtyReceived, lot.qtyRemaining + b.qtyUsed);
   });
-  // Log the reversal
+  // Restore location quantities (add back to Home first)
+  const assign = getLocAssignment(sale.sku);
+  if (!locAssignments.find(a => a.sku === sale.sku)) locAssignments.push(assign);
+  assign.home = parseFloat(((assign.home||0) + sale.qty).toFixed(4));
+  saveLocations();
   addAuditLog('SALE REVERSED', sale.sku, sale.date, `Qty: ${sale.qty} · Revenue: ${fmt$(sale.revenue)} · COGS: ${fmt$(sale.cogs)}`);
   sales = sales.filter(s => String(s.id) !== String(id));
   save();
@@ -2022,7 +2070,11 @@ function deleteBreak(id) {
     const lot = lots.find(l => String(l.id) === String(b.lotId));
     if (lot) lot.qtyRemaining = Math.min(lot.qtyReceived, lot.qtyRemaining + b.qtyUsed);
   });
-  // Log the reversal
+  // Restore location quantities (add back to Home)
+  const assign = getLocAssignment(brk.sku);
+  if (!locAssignments.find(a => a.sku === brk.sku)) locAssignments.push(assign);
+  assign.home = parseFloat(((assign.home||0) + brk.qty).toFixed(4));
+  saveLocations();
   addAuditLog('BREAK REVERSED', brk.sku, brk.date, `Qty: ${brk.qty} · COGS: ${fmt$(brk.cogs)}${brk.notes ? ' · ' + brk.notes : ''}`);
   breaks = breaks.filter(b => String(b.id) !== String(id));
   save();
