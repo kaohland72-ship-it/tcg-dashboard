@@ -1488,7 +1488,6 @@ function switchTab(id, btn) {
   if (id==='summary')  { renderSummary(); }
   if (id==='inventory') { populateInvDropdowns(); renderInventory(); renderLots(); renderReceiptLedger(); renderSalesLedger(); renderBreakLedger(); renderAuditLog(); renderInvCharts(); }
   if (id==='singles')   { renderSingles(); renderSinglesKPIs(); renderImportHistory(); renderSinglesCharts(); renderSnapUI(); }
-  if (id==='sold')      { renderSold(); renderSoldKPIs(); renderSoldImportHist(); }
   if (id==='revenue')   { populateRevMonthSel(); renderRevenue(); renderRevKPIs(); renderRevChart(); renderRevImportHist(); }
 }
 
@@ -1637,12 +1636,13 @@ function checkHomeStock(sku, qty) {
   const homeQty = assign.home || 0;
   const fmtQty = q => Number.isInteger(q) ? q : parseFloat(q).toFixed(2);
   if (homeQty <= 0) {
-    return `⚠ Location Warning: No stock assigned to Home for "${sku}".\n\nThis may mean a transfer from Warehouse → Home was not logged.\n\nYou can proceed, but your location balances may be out of sync.\n\nContinue anyway?`;
+    return 'Location Warning: No Home stock for ' + sku + '.\n\nThis may mean a transfer from Warehouse to Home was not logged.\n\nContinue anyway?';
   }
   if (homeQty < qty) {
-    return `⚠ Location Warning: Home only has ${fmtQty(homeQty)} unit(s) of "${sku}" but you are selling/breaking ${fmtQty(qty)}.\n\nThe remainder (${fmtQty(qty-homeQty)}) will be deducted from Warehouse.\n\nThis may mean a transfer was not logged. Continue?`;
+    const diff = fmtQty(qty - homeQty);
+    return 'Location Warning: Home only has ' + fmtQty(homeQty) + ' unit(s) of ' + sku + ' but you are selling/breaking ' + fmtQty(qty) + '.\n\nThe remainder (' + diff + ') will be deducted from Warehouse.\n\nContinue?';
   }
-  return null; // no warning
+  return null;
 }
 
 function openSaleModal(){
@@ -3224,6 +3224,7 @@ function saveLocations() {
     localStorage.setItem('tcg_locations',      JSON.stringify(locAssignments));
     localStorage.setItem('tcg_loc_transfers',  JSON.stringify(locTransferHist));
   } catch(e) {}
+  if (typeof sbPushSealed === 'function') sbPushSealed();
 }
 
 // Get location assignment for a SKU (defaults to Unassigned)
@@ -5291,14 +5292,34 @@ async function sbPushSealed() {
       }
     }
 
+    // ── Locations ──
+    await sbFetch('sealed_locations?created_at=gte.2000-01-01', { method:'DELETE' });
+    if (locAssignments.length) {
+      const locBatch = locAssignments.map(a => ({
+        sku: a.sku, home: a.home||0, warehouse: a.warehouse||0,
+      }));
+      for (let i = 0; i < locBatch.length; i += BATCH) {
+        await sbFetch('sealed_locations', { method:'POST', body:JSON.stringify(locBatch.slice(i,i+BATCH)) });
+      }
+    }
+
+    // ── Location transfer history ──
+    await sbFetch('sealed_location_transfers?created_at=gte.2000-01-01', { method:'DELETE' });
+    if (locTransferHist.length) {
+      const tBatch = locTransferHist.map(t => ({
+        date: t.date||null, sku: t.sku, qty: t.qty||0, from_loc: t.from||null, to_loc: t.to||null,
+      }));
+      for (let i = 0; i < tBatch.length; i += BATCH) {
+        await sbFetch('sealed_location_transfers', { method:'POST', body:JSON.stringify(tBatch.slice(i,i+BATCH)) });
+      }
+    }
+
     setSyncStatus('ok', 'Synced ' + fmtDate(todayIso()));
   } catch(e) {
     setSyncStatus('err', 'Sealed sync failed');
     console.warn('Sealed inventory Supabase sync failed:', e.message);
   }
 }
-
-// ── Pull sealed inventory from Supabase ──
 async function sbPullSealed() {
   if (!sbReady()) return;
   setSyncStatus('busy', 'Loading sealed inventory…');
@@ -5379,6 +5400,29 @@ async function sbPullSealed() {
       }));
     }
 
+    // Pull location assignments
+    const locRows = await sbFetch('sealed_locations?select=*');
+    if (locRows && locRows.length) {
+      locAssignments = locRows.map(r => ({
+        sku:       r.sku,
+        home:      parseFloat(r.home)      || 0,
+        warehouse: parseFloat(r.warehouse) || 0,
+      }));
+    }
+
+    // Pull location transfer history
+    const transRows = await sbFetch('sealed_location_transfers?select=*&order=created_at.asc');
+    if (transRows && transRows.length) {
+      locTransferHist = transRows.map(r => ({
+        date: r.date || '',
+        sku:  r.sku,
+        qty:  r.qty  || 0,
+        from: r.from_loc || '',
+        to:   r.to_loc   || '',
+      }));
+    }
+    saveLocations();
+
     // Save to localStorage as cache
     save();
     setSyncStatus('ok', 'Pulled ' + fmtDate(todayIso()));
@@ -5393,7 +5437,7 @@ async function sbPullSealed() {
     renderInvCharts();
     updateHeader();
 
-    console.log(`✓ Pulled sealed: ${lots.length} lots · ${sales.length} sales · ${breaks.length} breaks · ${skuMeta.length} SKU meta`);
+    console.log('Pulled sealed: ' + lots.length + ' lots, ' + sales.length + ' sales, ' + breaks.length + ' breaks, ' + skuMeta.length + ' SKU meta, ' + locAssignments.length + ' locations');
   } catch(e) {
     setSyncStatus('err', 'Pull failed');
     console.warn('Sealed pull failed:', e.message);
