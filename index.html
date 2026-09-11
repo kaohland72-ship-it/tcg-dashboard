@@ -5834,6 +5834,67 @@ setInterval(renderChecklist,60000);
 sbInit();
 document.getElementById('sb-modal').addEventListener('click', e => { if(e.target===e.currentTarget) closeSbModal(); });
 
+// Run FIFO reconciliation after a short delay to allow sbInit/sbPullSealed to complete first
+setTimeout(reconcileLots, 3000);
+
+// ── FIFO Startup Reconciliation ──
+// Runs silently on load. Uses breakdown data as source of truth to correct
+// any lot quantities that were not properly deducted (e.g. due to old ID mismatch bug).
+function reconcileLots() {
+  const allSkus = [...new Set(lots.map(l => l.sku))];
+  const corrections = [];
+
+  allSkus.forEach(sku => {
+    const skuLots = lots.filter(l => l.sku === sku);
+    skuLots.forEach(lot => {
+      const consumedSales = sales
+        .filter(s => s.sku === sku)
+        .flatMap(s => s.breakdown || [])
+        .filter(b => String(b.lotId) === String(lot.id))
+        .reduce((s, b) => s + b.qtyUsed, 0);
+      const consumedBreaks = breaks
+        .filter(b => b.sku === sku)
+        .flatMap(b => b.breakdown || [])
+        .filter(b => String(b.lotId) === String(lot.id))
+        .reduce((s, b) => s + b.qtyUsed, 0);
+      const correct = Math.max(0, parseFloat((lot.qtyReceived - consumedSales - consumedBreaks).toFixed(4)));
+      if (Math.abs(lot.qtyRemaining - correct) > 0.0001) {
+        corrections.push({
+          sku, lotDate: lot.date,
+          was: lot.qtyRemaining, corrected: correct,
+          diff: parseFloat((lot.qtyRemaining - correct).toFixed(4))
+        });
+        lot.qtyRemaining = correct;
+      }
+    });
+  });
+
+  if (corrections.length > 0) {
+    save();
+    if (typeof sbPushSealed === 'function') sbPushSealed();
+    console.warn('FIFO reconciliation corrected ' + corrections.length + ' lot(s):');
+    corrections.forEach(c => console.warn('  ' + c.sku + ' lot ' + c.lotDate + ': ' + c.was + ' → ' + c.corrected + ' (diff: ' + c.diff + ')'));
+
+    // Show notification banner
+    const banner = document.getElementById('recon-banner');
+    const msg    = document.getElementById('recon-banner-msg');
+    if (banner && msg) {
+      const skusAffected = [...new Set(corrections.map(c => c.sku))];
+      msg.innerHTML =
+        corrections.length + ' lot quantity correction' + (corrections.length !== 1 ? 's' : '') + ' applied on startup.<br>' +
+        '<span style="color:var(--text)">' + skusAffected.join(', ') + '</span><br>' +
+        '<span style="font-size:9.5px;opacity:.7">Inventory and Supabase updated automatically.</span>';
+      banner.style.display = 'block';
+      // Auto-dismiss after 30 seconds
+      setTimeout(() => { banner.style.display = 'none'; }, 30000);
+    }
+  } else {
+    console.log('✓ FIFO reconciliation: all lots correct');
+  }
+
+  return corrections.length;
+}
+
 // ── Year-end backup reminder — auto-creates Dec 31 task each year ──
 (function checkYearEndReminder(){
   const thisYear = new Date().getFullYear();
@@ -5847,5 +5908,20 @@ document.getElementById('sb-modal').addEventListener('click', e => { if(e.target
   }
 })();
 </script>
-</body>
-</html>
+<!-- ══ FIFO Reconciliation Notification ══ -->
+<div id="recon-banner" style="display:none;position:fixed;bottom:20px;right:20px;max-width:380px;background:var(--surface2);border:1px solid var(--accent);border-radius:10px;padding:14px 16px;z-index:999;box-shadow:0 4px 24px rgba(0,0,0,.4)">
+  <div style="display:flex;align-items:flex-start;gap:10px">
+    <span style="font-size:18px;flex-shrink:0">🔧</span>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:11px;font-weight:700;color:var(--accent);letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">Inventory Reconciled</div>
+      <div id="recon-banner-msg" style="font-size:10.5px;color:var(--muted);line-height:1.5"></div>
+    </div>
+    <button onclick="document.getElementById('recon-banner').style.display='none'" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:0;flex-shrink:0">✕</button>
+  </div>
+  <div style="margin-top:10px;display:flex;gap:8px">
+    <button class="btn btn-sm btn-outline" onclick="document.getElementById('recon-banner').style.display='none'">Dismiss</button>
+    <button class="btn btn-sm" onclick="switchTab('inventory',document.querySelector('.tab-btn:nth-child(3)'));document.getElementById('recon-banner').style.display='none'" style="background:var(--accent);color:#000">View Inventory</button>
+  </div>
+</div>
+
+
