@@ -667,7 +667,7 @@ tr:hover td{background:rgba(255,255,255,.018)}
     <div class="sw" style="padding:18px;margin-bottom:24px">
       <div class="sh" style="margin-bottom:6px">
         <span class="st">Sealed Cost vs Market Value</span>
-        <span style="font-size:10px;color:var(--muted)">SKUs with market price entered — sorted by unrealized P&amp;L</span>
+        <span style="font-size:10px;color:var(--muted)">SKUs with market price entered — sorted by return %</span>
       </div>
       <div style="font-size:10px;color:var(--muted);margin-bottom:12px">
         Positive P&amp;L = product has appreciated above cost — strong listing candidate. Negative = selling below cost.
@@ -1005,7 +1005,7 @@ tr:hover td{background:rgba(255,255,255,.018)}
       </select>
       <button class="btn btn-sm btn-outline" onclick="exportCostVsMarket()">⬇ Export CSV</button>
     </div>
-    <div style="font-size:10px;color:var(--muted);margin-bottom:8px">Enter market prices in the SKU Tagger above to populate this table. Sorted by unrealized P&amp;L — highest gains first.</div>
+    <div style="font-size:10px;color:var(--muted);margin-bottom:8px">Enter market prices in the SKU Tagger above to populate this table. Sorted by return % — highest performers first.</div>
     <div class="tw sc" style="max-height:300px;margin-bottom:24px">
       <table><thead><tr><th>SKU</th><th>Game</th><th>On Hand</th><th>Avg Cost</th><th>Mkt Price</th><th>Cost Basis</th><th>Market Value</th><th>Unrealized P&amp;L</th><th>Return %</th><th>Days</th></tr></thead>
       <tbody id="inv-cvm-body"></tbody></table>
@@ -1869,9 +1869,9 @@ function renderCostVsMarket() {
   if (filterVal === 'gain')   rows = rows.filter(r => r.pl !== null && r.pl >= 0);
   if (filterVal === 'loss')   rows = rows.filter(r => r.pl !== null && r.pl < 0);
   rows.sort((a,b) => {
-    if (a.pl !== null && b.pl !== null) return b.pl - a.pl;
-    if (a.pl !== null) return -1;
-    if (b.pl !== null) return 1;
+    if (a.returnPct !== null && b.returnPct !== null) return parseFloat(b.returnPct) - parseFloat(a.returnPct);
+    if (a.returnPct !== null) return -1;
+    if (b.returnPct !== null) return 1;
     return b.days - a.days;
   });
   const countEl = document.getElementById('inv-cvm-count');
@@ -5144,7 +5144,12 @@ function renderSummary() {
     const pl = mktVal - cost;
     const returnPct = cost > 0 ? ((pl/cost)*100).toFixed(1) : '0.0';
     return { sku, game, oh, avgCost, mktPrice, cost, mktVal, pl, returnPct, days };
-  }).filter(Boolean).sort((a,b) => b.pl - a.pl);
+  }).filter(Boolean).sort((a,b) => {
+    if (a.returnPct !== null && b.returnPct !== null) return parseFloat(b.returnPct) - parseFloat(a.returnPct);
+    if (a.returnPct !== null) return -1;
+    if (b.returnPct !== null) return 1;
+    return b.days - a.days;
+  });
 
   document.getElementById('sum-cost-mkt-body').innerHTML = costMktRows.length
     ? costMktRows.map(r => {
